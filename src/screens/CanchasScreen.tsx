@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { CanchaCard } from '../components/CanchaCard';
 import { colors } from '../theme/colors';
 
-export default function HomeScreen() {
+export default function CanchasScreen() {
   const canchas = [
     { nombre: 'Cancha Grande', estado: 'Libre' },
     { nombre: 'Cancha 1', estado: 'Ocupada' },
