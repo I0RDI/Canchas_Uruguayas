@@ -13,27 +13,28 @@ interface Torneo {
   id: string;
   nombre: string;
   fecha: string;
-  ubicacion: string;
+  canchas: string[];
 }
 
 export default function TorneosScreen() {
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [nombre, setNombre] = useState('');
   const [fecha, setFecha] = useState('');
-  const [ubicacion, setUbicacion] = useState('');
+  const [canchasSeleccionadas, setCanchasSeleccionadas] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const canchasDisponibles = ['Cancha Grande', 'Cancha 1', 'Cancha 2', 'Cancha 3'];
   const isEditing = editingId !== null;
 
   const resetForm = () => {
     setNombre('');
     setFecha('');
-    setUbicacion('');
+    setCanchasSeleccionadas([]);
     setEditingId(null);
   };
 
   const handleCreateOrUpdate = () => {
-    if (!nombre.trim() || !fecha.trim() || !ubicacion.trim()) {
+    if (!nombre.trim() || !fecha.trim() || canchasSeleccionadas.length === 0) {
       return;
     }
 
@@ -41,7 +42,7 @@ export default function TorneosScreen() {
       setTorneos((prev) =>
         prev.map((torneo) =>
           torneo.id === editingId
-            ? { ...torneo, nombre: nombre.trim(), fecha: fecha.trim(), ubicacion: ubicacion.trim() }
+            ? { ...torneo, nombre: nombre.trim(), fecha: fecha.trim(), canchas: [...canchasSeleccionadas] }
             : torneo,
         ),
       );
@@ -50,7 +51,7 @@ export default function TorneosScreen() {
         id: Date.now().toString(),
         nombre: nombre.trim(),
         fecha: fecha.trim(),
-        ubicacion: ubicacion.trim(),
+        canchas: [...canchasSeleccionadas],
       };
       setTorneos((prev) => [nuevoTorneo, ...prev]);
     }
@@ -61,7 +62,7 @@ export default function TorneosScreen() {
   const handleEdit = (torneo: Torneo) => {
     setNombre(torneo.nombre);
     setFecha(torneo.fecha);
-    setUbicacion(torneo.ubicacion);
+    setCanchasSeleccionadas(torneo.canchas);
     setEditingId(torneo.id);
   };
 
@@ -78,7 +79,7 @@ export default function TorneosScreen() {
         <Text style={styles.cardTitle}>{item.nombre}</Text>
         <Text style={styles.cardMeta}>{item.fecha}</Text>
       </View>
-      <Text style={styles.cardMeta}>{item.ubicacion}</Text>
+      <Text style={styles.cardMeta}>{item.canchas.join(', ')}</Text>
       <View style={styles.cardActions}>
         <TouchableOpacity onPress={() => handleEdit(item)} style={[styles.actionButton, styles.editButton]}>
           <Text style={styles.actionText}>Editar</Text>
@@ -109,13 +110,28 @@ export default function TorneosScreen() {
           onChangeText={setFecha}
           style={styles.input}
         />
-        <TextInput
-          placeholder="Ubicación"
-          placeholderTextColor="#7F8C8D"
-          value={ubicacion}
-          onChangeText={setUbicacion}
-          style={styles.input}
-        />
+        <Text style={styles.checkboxLabel}>Selecciona las canchas disponibles</Text>
+        <View style={styles.checkboxGroup}>
+          {canchasDisponibles.map((cancha) => {
+            const isSelected = canchasSeleccionadas.includes(cancha);
+            return (
+              <TouchableOpacity
+                key={cancha}
+                style={[styles.checkboxItem, isSelected && styles.checkboxItemSelected]}
+                onPress={() =>
+                  setCanchasSeleccionadas((prev) =>
+                    prev.includes(cancha)
+                      ? prev.filter((c) => c !== cancha)
+                      : [...prev, cancha],
+                  )
+                }
+              >
+                <View style={[styles.checkboxIndicator, isSelected && styles.checkboxIndicatorSelected]} />
+                <Text style={styles.checkboxText}>{cancha}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
         <View style={styles.formActions}>
           <TouchableOpacity
             style={[styles.primaryButton, isEditing ? styles.updateButton : styles.createButton]}
@@ -169,7 +185,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 3,
-    gap: 12,
   },
   input: {
     backgroundColor: '#F8F9F9',
@@ -178,6 +193,50 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: colors.text,
     fontSize: 16,
+    marginBottom: 12,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  checkboxGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+  },
+  checkboxItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D5DBDB',
+    backgroundColor: '#F8F9F9',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  checkboxItemSelected: {
+    borderColor: colors.primary,
+    backgroundColor: '#E8F8F5',
+  },
+  checkboxIndicator: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#BDC3C7',
+    marginRight: 8,
+  },
+  checkboxIndicatorSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  checkboxText: {
+    color: colors.text,
+    fontWeight: '500',
   },
   formActions: {
     flexDirection: 'row',
