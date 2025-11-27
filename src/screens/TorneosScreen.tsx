@@ -1,13 +1,8 @@
-import React, { useState } from 'react';
-import {
-  FlatList,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 import { colors } from '../theme/colors';
+import { useAuth } from '../context/AuthContext';
+import { actualizarTorneo, crearTorneo, eliminarTorneo, obtenerTorneos } from '../services/api';
 
 interface Torneo {
   id: string;
@@ -17,11 +12,13 @@ interface Torneo {
 }
 
 export default function TorneosScreen() {
+  const { user } = useAuth();
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [nombre, setNombre] = useState('');
   const [fecha, setFecha] = useState('');
   const [canchasSeleccionadas, setCanchasSeleccionadas] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const canchasDisponibles = ['Cancha Grande', 'Cancha 1', 'Cancha 2', 'Cancha 3'];
   const isEditing = editingId !== null;
@@ -33,30 +30,48 @@ export default function TorneosScreen() {
     setEditingId(null);
   };
 
-  const handleCreateOrUpdate = () => {
-    if (!nombre.trim() || !fecha.trim() || canchasSeleccionadas.length === 0) {
+  const cargar = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const data = await obtenerTorneos(user.token);
+      setTorneos(data);
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    cargar();
+  }, [user]);
+
+  const handleCreateOrUpdate = async () => {
+    if (!user || !nombre.trim() || !fecha.trim() || canchasSeleccionadas.length === 0) {
       return;
     }
 
-    if (editingId) {
-      setTorneos((prev) =>
-        prev.map((torneo) =>
-          torneo.id === editingId
-            ? { ...torneo, nombre: nombre.trim(), fecha: fecha.trim(), canchas: [...canchasSeleccionadas] }
-            : torneo,
-        ),
-      );
-    } else {
-      const nuevoTorneo: Torneo = {
-        id: Date.now().toString(),
-        nombre: nombre.trim(),
-        fecha: fecha.trim(),
-        canchas: [...canchasSeleccionadas],
-      };
-      setTorneos((prev) => [nuevoTorneo, ...prev]);
+    try {
+      if (editingId) {
+        const updated = await actualizarTorneo(user.token, editingId, {
+          nombre: nombre.trim(),
+          fecha: fecha.trim(),
+          canchas: [...canchasSeleccionadas],
+        });
+        setTorneos((prev) => prev.map((torneo) => (torneo.id === editingId ? updated : torneo)));
+      } else {
+        const nuevoTorneo: Torneo = await crearTorneo(user.token, {
+          nombre: nombre.trim(),
+          fecha: fecha.trim(),
+          canchas: [...canchasSeleccionadas],
+        });
+        setTorneos((prev) => [nuevoTorneo, ...prev]);
+      }
+      resetForm();
+    } catch (error: any) {
+      Alert.alert('No se pudo guardar', error.message);
     }
-
-    resetForm();
   };
 
   const handleEdit = (torneo: Torneo) => {
@@ -66,10 +81,16 @@ export default function TorneosScreen() {
     setEditingId(torneo.id);
   };
 
-  const handleDelete = (id: string) => {
-    setTorneos((prev) => prev.filter((torneo) => torneo.id !== id));
-    if (editingId === id) {
-      resetForm();
+  const handleDelete = async (id: string) => {
+    if (!user) return;
+    try {
+      await eliminarTorneo(user.token, id);
+      setTorneos((prev) => prev.filter((torneo) => torneo.id !== id));
+      if (editingId === id) {
+        resetForm();
+      }
+    } catch (error: any) {
+      Alert.alert('No se pudo eliminar', error.message);
     }
   };
 
@@ -95,7 +116,12 @@ export default function TorneosScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Gestionar torneos</Text>
       <View style={styles.form}>
-        <Text style={styles.sectionTitle}>{isEditing ? 'Editar torneo' : 'Crear nuevo torneo'}</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.sectionTitle}>{isEditing ? 'Editar torneo' : 'Crear nuevo torneo'}</Text>
+          <TouchableOpacity onPress={cargar}>
+            <Text style={{ color: colors.primary }}>{loading ? 'Actualizando...' : 'Refrescar'}</Text>
+          </TouchableOpacity>
+        </View>
         <TextInput
           placeholder="Nombre del torneo"
           placeholderTextColor="#7F8C8D"
@@ -120,9 +146,7 @@ export default function TorneosScreen() {
                 style={[styles.checkboxItem, isSelected && styles.checkboxItemSelected]}
                 onPress={() =>
                   setCanchasSeleccionadas((prev) =>
-                    prev.includes(cancha)
-                      ? prev.filter((c) => c !== cancha)
-                      : [...prev, cancha],
+                    prev.includes(cancha) ? prev.filter((c) => c !== cancha) : [...prev, cancha],
                   )
                 }
               >
@@ -171,6 +195,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 16,
   },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
