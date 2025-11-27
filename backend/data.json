@@ -1,0 +1,11 @@
+{
+  "users": [
+    { "id": "u1", "email": "propietario@club.com", "password": "admin123", "nombre": "Propietario", "rol": "propietario" },
+    { "id": "u2", "email": "empleado@club.com", "password": "empleado123", "nombre": "Empleado", "rol": "empleado1" }
+  ],
+  "torneos": [],
+  "arbitros": [],
+  "caja": [],
+  "bitacora": [],
+  "partidos": []
+}
