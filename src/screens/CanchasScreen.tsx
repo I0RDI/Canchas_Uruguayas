@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { CanchaCard } from '../components/CanchaCard';
 import { colors } from '../theme/colors';
+import { registrarRenta } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 type Cancha = {
   id: string;
@@ -26,9 +28,11 @@ const initialCanchas: Cancha[] = [
 ];
 
 export default function CanchasScreen() {
+  const { user } = useAuth();
   const [canchas, setCanchas] = useState<Cancha[]>(initialCanchas);
   const [selectedCanchaId, setSelectedCanchaId] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<Record<string, { hora: string; cliente: string }>>({});
+  const [registrando, setRegistrando] = useState(false);
 
   const selectedCancha = useMemo(
     () => canchas.find((cancha) => cancha.id === selectedCanchaId) || null,
@@ -46,25 +50,34 @@ export default function CanchasScreen() {
     }));
   };
 
-  const handleGuardarReserva = () => {
-    if (!selectedCanchaId) return;
+  const handleGuardarReserva = async () => {
+    if (!selectedCanchaId || !user) return;
     const datos = formValues[selectedCanchaId] || { hora: '', cliente: '' };
     if (!datos.hora.trim() || !datos.cliente.trim()) {
       return;
     }
 
-    setCanchas((prev) =>
-      prev.map((cancha) =>
-        cancha.id === selectedCanchaId
-          ? {
-              ...cancha,
-              estado: 'Ocupada',
-              alquiler: { hora: datos.hora.trim(), cliente: datos.cliente.trim() },
-            }
-          : cancha,
-      ),
-    );
-    setFormValues((prev) => ({ ...prev, [selectedCanchaId]: { hora: '', cliente: '' } }));
+    setRegistrando(true);
+    try {
+      await registrarRenta(user.token, { monto: 240, referencia: `${selectedCanchaId}-${datos.cliente}` });
+      setCanchas((prev) =>
+        prev.map((cancha) =>
+          cancha.id === selectedCanchaId
+            ? {
+                ...cancha,
+                estado: 'Ocupada',
+                alquiler: { hora: datos.hora.trim(), cliente: datos.cliente.trim() },
+              }
+            : cancha,
+        ),
+      );
+      setFormValues((prev) => ({ ...prev, [selectedCanchaId]: { hora: '', cliente: '' } }));
+      Alert.alert('Reserva guardada', 'Se registró la renta en caja.');
+    } catch (error: any) {
+      Alert.alert('No se pudo registrar', error.message);
+    } finally {
+      setRegistrando(false);
+    }
   };
 
   return (
@@ -99,19 +112,19 @@ export default function CanchasScreen() {
                 <TextInput
                   placeholder="Hora (ej. 18:00)"
                   placeholderTextColor="#7F8C8D"
-                  value={(formValues[selectedCancha.id]?.hora || '')}
+                  value={formValues[selectedCancha.id]?.hora || ''}
                   onChangeText={(text) => updateFormValues('hora', text)}
                   style={styles.input}
                 />
                 <TextInput
                   placeholder="Nombre de quien renta"
                   placeholderTextColor="#7F8C8D"
-                  value={(formValues[selectedCancha.id]?.cliente || '')}
+                  value={formValues[selectedCancha.id]?.cliente || ''}
                   onChangeText={(text) => updateFormValues('cliente', text)}
                   style={styles.input}
                 />
-                <TouchableOpacity style={styles.saveButton} onPress={handleGuardarReserva}>
-                  <Text style={styles.saveButtonText}>Guardar</Text>
+                <TouchableOpacity style={styles.saveButton} onPress={handleGuardarReserva} disabled={registrando}>
+                  <Text style={styles.saveButtonText}>{registrando ? 'Guardando...' : 'Guardar'}</Text>
                 </TouchableOpacity>
               </View>
             )}

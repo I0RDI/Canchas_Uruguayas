@@ -1,14 +1,25 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
+import { useAuth } from '../context/AuthContext';
 
-type LoginScreenProps = {
-  onLogin: () => void;
-};
-
-export default function LoginScreen({ onLogin }: LoginScreenProps) {
+export default function LoginScreen() {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) return;
+    try {
+      setLoading(true);
+      await login(email.trim(), password.trim());
+    } catch (error: any) {
+      Alert.alert('Error al ingresar', error.message || 'Revisa tus credenciales');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -34,9 +45,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           style={styles.input}
         />
 
-        <TouchableOpacity style={styles.loginButton} onPress={onLogin}>
-          <Text style={styles.loginText}>Ingresar</Text>
+        <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
+          <Text style={styles.loginText}>{loading ? 'Ingresando...' : 'Ingresar'}</Text>
         </TouchableOpacity>
+        <Text style={styles.helperText}>
+          Usa propietario@club.com (admin123) o empleado@club.com (empleado123) para probar.
+        </Text>
       </View>
     </View>
   );
@@ -90,5 +104,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#7F8C8D',
   },
 });
