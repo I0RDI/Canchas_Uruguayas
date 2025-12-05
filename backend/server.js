@@ -20,8 +20,28 @@ const writeData = (data) => fs.writeFileSync(DATA_PATH, JSON.stringify(data, nul
 
 const appendBitacora = (entry) => {
   const data = readData();
-  data.bitacora.unshift({ id: nanoid(), fecha: new Date().toISOString(), ...entry });
+  const fecha_hora = new Date().toISOString();
+  data.bitacora.unshift({ id: nanoid(), fecha_hora, ...entry });
   writeData(data);
+};
+
+const registrarMovimientoCaja = (data, { concepto, tipo, monto, referencia, usuario_id, partidoId, arbitroId, torneoId }) => {
+  const fecha_hora = new Date().toISOString();
+  const movimiento = {
+    id: nanoid(),
+    concepto,
+    tipo,
+    monto: Number(monto),
+    fecha: fecha_hora,
+    fecha_hora,
+    referencia: referencia || null,
+    usuario_id,
+    partidoId: partidoId || null,
+    arbitroId: arbitroId || null,
+    torneoId: torneoId || null,
+  };
+  data.caja.unshift(movimiento);
+  return movimiento;
 };
 
 const authMiddleware = (req, res, next) => {
@@ -47,7 +67,7 @@ app.post('/login', (req, res) => {
 
   const payload = { id: user.id, rol: user.rol, nombre: user.nombre };
   const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
-  appendBitacora({ usuario_id: user.id, accion: 'login', entidad: 'login', id_entidad: user.id });
+  appendBitacora({ usuario_id: user.id, accion: 'login', entidad: 'usuario', id_entidad: user.id });
 
   res.json({ token, ...payload, email: user.email, user: { ...payload, email: user.email } });
 });
@@ -67,7 +87,7 @@ app.post('/torneos', authMiddleware, (req, res) => {
   const torneo = { id: nanoid(), nombre, fecha, canchas, creadoPor: req.user.id, activo: true };
   data.torneos.unshift(torneo);
   writeData(data);
-  appendBitacora({ usuario_id: req.user.id, accion: 'crear', entidad: 'torneo', id_entidad: torneo.id });
+  appendBitacora({ usuario_id: req.user.id, accion: 'crear_torneo', entidad: 'torneo', id_entidad: torneo.id });
   res.status(201).json(torneo);
 });
 
@@ -131,9 +151,20 @@ app.post('/partidos', authMiddleware, (req, res) => {
   const data = readData();
   const arbitro = data.arbitros.find((a) => a.id === arbitroId);
   if (!arbitro) return res.status(400).json({ message: 'Árbitro no válido' });
-  const partido = { id: nanoid(), arbitroId, torneoId: torneoId || null, fecha: fecha || new Date().toISOString() };
+  if (torneoId) {
+    const torneoExiste = data.torneos.find((t) => t.id === torneoId && t.activo !== false);
+    if (!torneoExiste) return res.status(400).json({ message: 'Torneo no válido' });
+  }
+  const partido = {
+    id: nanoid(),
+    arbitroId,
+    torneoId: torneoId || null,
+    fecha: fecha || new Date().toISOString(),
+    pagado: false,
+  };
   data.partidos.unshift(partido);
   writeData(data);
+  appendBitacora({ usuario_id: req.user.id, accion: 'crear_partido', entidad: 'partido', id_entidad: partido.id, arbitroId });
   res.status(201).json(partido);
 });
 
@@ -141,19 +172,22 @@ app.post('/partidos/:id/pago-arbitro', authMiddleware, (req, res) => {
   const data = readData();
   const partido = data.partidos.find((p) => p.id === req.params.id);
   if (!partido) return res.status(404).json({ message: 'Partido no encontrado' });
-  const movimiento = {
-    id: nanoid(),
+  if (partido.pagado) return res.status(400).json({ message: 'El árbitro ya fue pagado para este partido' });
+
+  const movimiento = registrarMovimientoCaja(data, {
     concepto: 'Pago árbitro',
     tipo: 'pago_arbitro',
     monto: 240,
-    fecha: new Date().toISOString(),
+    usuario_id: req.user.id,
     partidoId: partido.id,
     arbitroId: partido.arbitroId,
-    registradoPor: req.user.id,
-  };
-  data.caja.unshift(movimiento);
+    torneoId: partido.torneoId,
+  });
+
+  partido.pagado = true;
+  partido.pagoId = movimiento.id;
   writeData(data);
-  appendBitacora({ usuario_id: req.user.id, accion: 'pago_arbitro', entidad: 'pago_arbitro', id_entidad: movimiento.id, arbitro_id: partido.arbitroId });
+  appendBitacora({ usuario_id: req.user.id, accion: 'pago_arbitro', entidad: 'partido', id_entidad: partido.id, detalle: movimiento.id });
   res.status(201).json(movimiento);
 });
 
@@ -163,7 +197,9 @@ app.get('/caja', authMiddleware, (req, res) => {
   const targetDate = fecha ? new Date(fecha) : new Date();
   const day = targetDate.toISOString().slice(0, 10);
   const data = readData();
-  const movimientos = data.caja.filter((m) => m.fecha.slice(0, 10) === day);
+  const movimientos = data.caja
+    .filter((m) => (m.fecha || m.fecha_hora || '').slice(0, 10) === day)
+    .map((m) => ({ ...m, fecha: m.fecha || m.fecha_hora }));
   res.json(movimientos);
 });
 
@@ -171,18 +207,15 @@ app.post('/caja/renta', authMiddleware, (req, res) => {
   const { monto, referencia } = req.body;
   if (!monto) return res.status(400).json({ message: 'Monto requerido' });
   const data = readData();
-  const movimiento = {
-    id: nanoid(),
+  const movimiento = registrarMovimientoCaja(data, {
     concepto: 'Renta cancha',
     tipo: 'renta',
-    monto: Number(monto),
-    fecha: new Date().toISOString(),
-    referencia: referencia || null,
-    registradoPor: req.user.id,
-  };
-  data.caja.unshift(movimiento);
+    monto,
+    referencia,
+    usuario_id: req.user.id,
+  });
   writeData(data);
-  appendBitacora({ usuario_id: req.user.id, accion: 'crear', entidad: 'reserva', id_entidad: movimiento.id });
+  appendBitacora({ usuario_id: req.user.id, accion: 'crear_reserva', entidad: 'reserva', id_entidad: movimiento.id });
   res.status(201).json(movimiento);
 });
 
