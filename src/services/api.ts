@@ -1,15 +1,25 @@
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.50.86:4000';
 
 async function request(path: string, options: RequestInit = {}) {
   const res = await fetch(`${API_URL}${path}`, {
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
   });
-  if (!res.ok) {
-    const message = await res.text();
-    throw new Error(message || 'Error de servidor');
+
+  let payload: any = null;
+  const text = await res.text();
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch (error) {
+    payload = text;
   }
-  return res.json();
+
+  if (!res.ok) {
+    const message = payload?.message || payload || 'Error de servidor';
+    throw new Error(typeof message === 'string' ? message : 'Error de servidor');
+  }
+
+  return payload;
 }
 
 export async function login(email: string, password: string) {
