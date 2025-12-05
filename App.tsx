@@ -11,12 +11,34 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import ArbitrosScreen from './src/screens/ArbitrosScreen';
 import CajaScreen from './src/screens/CajaScreen';
 
+const TAB_CONFIG = [
+  { name: 'Torneos', component: TorneosScreen, roles: ['propietario', 'empleado2'] },
+  { name: 'Arbitros', component: ArbitrosScreen, roles: ['propietario', 'empleado2'] },
+  { name: 'Canchas', component: CanchasScreen, roles: ['propietario', 'empleado1'] },
+  { name: 'Calendario', component: CalendarioScreen, roles: ['propietario', 'empleado1'] },
+  { name: 'Caja', component: CajaScreen, roles: ['propietario', 'empleado1'] },
+  { name: 'Ajustes', component: AjustesScreen, roles: ['propietario'] },
+];
+
 const Tab = createBottomTabNavigator();
 
 function AppTabs() {
+  const { user } = useAuth();
+  const availableTabs = TAB_CONFIG.filter((tab) => tab.roles.includes(user?.rol || ''));
+  const initialRouteName = availableTabs[0]?.name || 'Canchas';
+
+  if (!availableTabs.length) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: colors.text }}>No tienes permisos para ver esta sección.</Text>
+      </View>
+    );
+  }
+
   return (
     <Tab.Navigator
-      initialRouteName="Canchas"
+      key={user?.rol || 'guest'}
+      initialRouteName={initialRouteName}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
@@ -40,12 +62,9 @@ function AppTabs() {
         },
       })}
     >
-      <Tab.Screen name="Torneos" component={TorneosScreen} />
-      <Tab.Screen name="Arbitros" component={ArbitrosScreen} />
-      <Tab.Screen name="Canchas" component={CanchasScreen} />
-      <Tab.Screen name="Calendario" component={CalendarioScreen} />
-      <Tab.Screen name="Caja" component={CajaScreen} />
-      <Tab.Screen name="Ajustes" component={AjustesScreen} />
+      {availableTabs.map((tab) => (
+        <Tab.Screen key={tab.name} name={tab.name} component={tab.component} />
+      ))}
     </Tab.Navigator>
   );
 }

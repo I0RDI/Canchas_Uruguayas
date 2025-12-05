@@ -1,7 +1,8 @@
 {
   "users": [
     { "id": "u1", "email": "propietario@club.com", "password": "admin123", "nombre": "Propietario", "rol": "propietario" },
-    { "id": "u2", "email": "empleado@club.com", "password": "empleado123", "nombre": "Empleado", "rol": "empleado1" }
+    { "id": "u2", "email": "empleado@club.com", "password": "empleado123", "nombre": "Empleado", "rol": "empleado1" },
+    { "id": "u3", "email": "torneos@club.com", "password": "empleado123", "nombre": "Empleado Torneos", "rol": "empleado2" }
   ],
   "torneos": [],
   "arbitros": [],

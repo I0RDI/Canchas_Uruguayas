@@ -49,7 +49,7 @@ export default function LoginScreen() {
           <Text style={styles.loginText}>{loading ? 'Ingresando...' : 'Ingresar'}</Text>
         </TouchableOpacity>
         <Text style={styles.helperText}>
-          Usa propietario@club.com (admin123) o empleado@club.com (empleado123) para probar.
+          Usa propietario@club.com (admin123), empleado@club.com (empleado123) o torneos@club.com (empleado123) para probar.
         </Text>
       </View>
     </View>

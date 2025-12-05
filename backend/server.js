@@ -44,9 +44,12 @@ app.post('/login', (req, res) => {
   if (!user) {
     return res.status(401).json({ message: 'Credenciales incorrectas' });
   }
-  const token = jwt.sign({ id: user.id, rol: user.rol, nombre: user.nombre }, JWT_SECRET, { expiresIn: '1d' });
+
+  const payload = { id: user.id, rol: user.rol, nombre: user.nombre };
+  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
   appendBitacora({ usuario_id: user.id, accion: 'login', entidad: 'login', id_entidad: user.id });
-  res.json({ token, user: { id: user.id, nombre: user.nombre, rol: user.rol, email: user.email } });
+
+  res.json({ token, ...payload, email: user.email, user: { ...payload, email: user.email } });
 });
 
 // Torneos CRUD
@@ -90,7 +93,7 @@ app.delete('/torneos/:id', authMiddleware, (req, res) => {
 // Árbitros CRUD
 app.get('/arbitros', authMiddleware, (req, res) => {
   const data = readData();
-  res.json(data.arbitros);
+  res.json(data.arbitros.filter((a) => a.activo !== false));
 });
 
 app.post('/arbitros', authMiddleware, (req, res) => {

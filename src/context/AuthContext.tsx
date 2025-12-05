@@ -25,17 +25,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     (async () => {
-      const saved = await AsyncStorage.getItem('session');
-      if (saved) {
-        setUser(JSON.parse(saved));
+      try {
+        const saved = await AsyncStorage.getItem('session');
+        if (saved) {
+          setUser(JSON.parse(saved));
+        }
+      } catch (error) {
+        await AsyncStorage.removeItem('session');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, []);
 
   const login = async (email: string, password: string) => {
     const response = await loginApi(email, password);
-    const session: UserSession = { ...response.user, token: response.token };
+    const sessionPayload = response.user || response;
+    const session: UserSession = { id: sessionPayload.id, nombre: sessionPayload.nombre, rol: sessionPayload.rol, email: sessionPayload.email, token: response.token };
     setUser(session);
     await AsyncStorage.setItem('session', JSON.stringify(session));
   };
