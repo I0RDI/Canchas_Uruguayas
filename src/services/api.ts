@@ -78,3 +78,28 @@ export async function movimientosCaja(token: string, fecha?: string) {
 export async function bitacora(token: string) {
   return request('/bitacora', { headers: { Authorization: `Bearer ${token}` } });
 }
+
+export async function crearReserva(
+  token: string,
+  payload: { cancha: string; cliente: string; fecha: string; horaInicio: string; horaFin?: string; monto?: number; referencia?: string },
+) {
+  return request('/reservas', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
+}
+
+export async function calendarioDia(token: string, fecha: string) {
+  const query = fecha ? `?fecha=${encodeURIComponent(fecha)}` : '';
+  return request(`/calendario${query}`, { headers: { Authorization: `Bearer ${token}` } });
+}
+
+export async function reporteMensual(token: string, anio: number, mes: number) {
+  const query = `?anio=${anio}&mes=${mes}`;
+  return request(`/reportes/mensual${query}`, { headers: { Authorization: `Bearer ${token}` } });
+}
+
+export async function cerrarDia(token: string, fecha?: string) {
+  return request('/caja/cerrar-dia', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(fecha ? { fecha } : {}),
+  });
+}

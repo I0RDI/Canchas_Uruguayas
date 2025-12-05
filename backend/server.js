@@ -15,8 +15,23 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const readData = () => JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'));
-const writeData = (data) => fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
+const ensureDataShape = (data) => ({
+  users: [],
+  torneos: [],
+  arbitros: [],
+  caja: [],
+  bitacora: [],
+  partidos: [],
+  reservas: [],
+  cierresDiarios: [],
+  ...data,
+});
+
+const readData = () => ensureDataShape(JSON.parse(fs.readFileSync(DATA_PATH, 'utf8')));
+const writeData = (data) => fs.writeFileSync(DATA_PATH, JSON.stringify(ensureDataShape(data), null, 2));
+
+const sameDay = (dateA, dateB) => dateA.slice(0, 10) === dateB.slice(0, 10);
+const isDayClosed = (data, day) => (data.cierresDiarios || []).some((cierre) => cierre.fecha === day);
 
 const appendBitacora = (entry) => {
   const data = readData();
@@ -27,6 +42,10 @@ const appendBitacora = (entry) => {
 
 const registrarMovimientoCaja = (data, { concepto, tipo, monto, referencia, usuario_id, partidoId, arbitroId, torneoId }) => {
   const fecha_hora = new Date().toISOString();
+  const day = fecha_hora.slice(0, 10);
+  if (isDayClosed(data, day)) {
+    throw new Error('El día ya está cerrado. No se pueden registrar nuevos movimientos.');
+  }
   const movimiento = {
     id: nanoid(),
     concepto,
@@ -34,6 +53,7 @@ const registrarMovimientoCaja = (data, { concepto, tipo, monto, referencia, usua
     monto: Number(monto),
     fecha: fecha_hora,
     fecha_hora,
+    cerrado: false,
     referencia: referencia || null,
     usuario_id,
     partidoId: partidoId || null,
@@ -130,7 +150,11 @@ app.put('/arbitros/:id', authMiddleware, (req, res) => {
   const data = readData();
   const arbitro = data.arbitros.find((a) => a.id === req.params.id);
   if (!arbitro) return res.status(404).json({ message: 'Árbitro no encontrado' });
-  Object.assign(arbitro, { nombre: req.body.nombre ?? arbitro.nombre, telefono: req.body.telefono ?? arbitro.telefono, activo: req.body.activo ?? arbitro.activo });
+  Object.assign(arbitro, {
+    nombre: req.body.nombre ?? arbitro.nombre,
+    telefono: req.body.telefono ?? arbitro.telefono,
+    activo: req.body.activo ?? arbitro.activo,
+  });
   writeData(data);
   res.json(arbitro);
 });
@@ -174,21 +198,96 @@ app.post('/partidos/:id/pago-arbitro', authMiddleware, (req, res) => {
   if (!partido) return res.status(404).json({ message: 'Partido no encontrado' });
   if (partido.pagado) return res.status(400).json({ message: 'El árbitro ya fue pagado para este partido' });
 
-  const movimiento = registrarMovimientoCaja(data, {
-    concepto: 'Pago árbitro',
-    tipo: 'pago_arbitro',
-    monto: 240,
-    usuario_id: req.user.id,
-    partidoId: partido.id,
-    arbitroId: partido.arbitroId,
-    torneoId: partido.torneoId,
-  });
+  let movimiento;
+  try {
+    movimiento = registrarMovimientoCaja(data, {
+      concepto: 'Pago árbitro',
+      tipo: 'pago_arbitro',
+      monto: 240,
+      usuario_id: req.user.id,
+      partidoId: partido.id,
+      arbitroId: partido.arbitroId,
+      torneoId: partido.torneoId,
+    });
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
 
   partido.pagado = true;
   partido.pagoId = movimiento.id;
   writeData(data);
   appendBitacora({ usuario_id: req.user.id, accion: 'pago_arbitro', entidad: 'partido', id_entidad: partido.id, detalle: movimiento.id });
   res.status(201).json(movimiento);
+});
+
+// Reservas y calendario
+app.get('/reservas', authMiddleware, (req, res) => {
+  const { fecha } = req.query;
+  const data = readData();
+  const reservas = fecha
+    ? data.reservas.filter((r) => sameDay(r.fecha, fecha)).sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
+    : data.reservas;
+  res.json(reservas);
+});
+
+app.post('/reservas', authMiddleware, (req, res) => {
+  const { cancha, cliente, fecha, horaInicio, horaFin, monto, referencia } = req.body;
+  if (!cancha || !cliente || !fecha || !horaInicio) {
+    return res.status(400).json({ message: 'Datos incompletos para la reserva' });
+  }
+  const data = readData();
+  const reserva = {
+    id: nanoid(),
+    cancha,
+    cliente,
+    fecha,
+    horaInicio,
+    horaFin: horaFin || '',
+    estado: 'confirmada',
+    referencia: referencia || null,
+    creadaPor: req.user.id,
+    creadaEn: new Date().toISOString(),
+  };
+  try {
+    if (monto) {
+      const movimiento = registrarMovimientoCaja(data, {
+        concepto: 'Renta cancha',
+        tipo: 'renta',
+        monto,
+        referencia: referencia || `reserva-${reserva.id}`,
+        usuario_id: req.user.id,
+      });
+      reserva.movimientoCajaId = movimiento.id;
+    }
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+  data.reservas.unshift(reserva);
+  writeData(data);
+  appendBitacora({ usuario_id: req.user.id, accion: 'crear_reserva', entidad: 'reserva', id_entidad: reserva.id });
+  res.status(201).json(reserva);
+});
+
+app.get('/calendario', authMiddleware, (req, res) => {
+  const { fecha } = req.query;
+  const day = fecha || new Date().toISOString().slice(0, 10);
+  const data = readData();
+  const reservas = data.reservas
+    .filter((r) => sameDay(r.fecha, day))
+    .map((r) => ({
+      ...r,
+      tipo: 'reserva',
+    }));
+
+  const partidos = data.partidos
+    .filter((p) => p.fecha && sameDay(p.fecha, day))
+    .map((p) => ({ ...p, tipo: 'partido' }));
+
+  const torneos = data.torneos
+    .filter((t) => t.fecha && sameDay(t.fecha, day))
+    .map((t) => ({ ...t, tipo: 'torneo' }));
+
+  res.json({ fecha: day, reservas, partidos, torneos });
 });
 
 // Caja
@@ -200,23 +299,114 @@ app.get('/caja', authMiddleware, (req, res) => {
   const movimientos = data.caja
     .filter((m) => (m.fecha || m.fecha_hora || '').slice(0, 10) === day)
     .map((m) => ({ ...m, fecha: m.fecha || m.fecha_hora }));
-  res.json(movimientos);
+  const cierre = (data.cierresDiarios || []).find((c) => c.fecha === day) || null;
+  res.json({ fecha: day, movimientos, cerrado: Boolean(cierre), cierre });
 });
 
 app.post('/caja/renta', authMiddleware, (req, res) => {
   const { monto, referencia } = req.body;
   if (!monto) return res.status(400).json({ message: 'Monto requerido' });
   const data = readData();
-  const movimiento = registrarMovimientoCaja(data, {
-    concepto: 'Renta cancha',
-    tipo: 'renta',
-    monto,
-    referencia,
-    usuario_id: req.user.id,
-  });
+  let movimiento;
+  try {
+    movimiento = registrarMovimientoCaja(data, {
+      concepto: 'Renta cancha',
+      tipo: 'renta',
+      monto,
+      referencia,
+      usuario_id: req.user.id,
+    });
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
   writeData(data);
   appendBitacora({ usuario_id: req.user.id, accion: 'crear_reserva', entidad: 'reserva', id_entidad: movimiento.id });
   res.status(201).json(movimiento);
+});
+
+app.post('/caja/cerrar-dia', authMiddleware, (req, res) => {
+  const { fecha } = req.body || {};
+  const target = fecha ? new Date(fecha) : new Date();
+  const day = target.toISOString().slice(0, 10);
+  const data = readData();
+
+  if (isDayClosed(data, day)) {
+    return res.status(400).json({ message: 'El día ya fue cerrado previamente' });
+  }
+
+  const movimientos = data.caja.filter((m) => (m.fecha || m.fecha_hora || '').slice(0, 10) === day);
+  const ingresosRenta = movimientos.filter((m) => m.tipo === 'renta').reduce((acc, curr) => acc + Number(curr.monto || 0), 0);
+  const egresosArbitros = movimientos
+    .filter((m) => m.tipo === 'pago_arbitro')
+    .reduce((acc, curr) => acc + Number(curr.monto || 0), 0);
+
+  const totalIngresos = ingresosRenta;
+  const totalEgresos = egresosArbitros;
+  const saldoNeto = totalIngresos - totalEgresos;
+
+  movimientos.forEach((mov) => {
+    mov.cerrado = true;
+    mov.fecha_cierre = new Date().toISOString();
+  });
+
+  const cierre = {
+    id: nanoid(),
+    fecha: day,
+    ingresos: totalIngresos,
+    egresos: totalEgresos,
+    saldoNeto,
+    totalMovimientos: movimientos.length,
+    usuario_id: req.user.id,
+    fecha_cierre: new Date().toISOString(),
+  };
+
+  data.cierresDiarios.unshift(cierre);
+  writeData(data);
+  appendBitacora({ usuario_id: req.user.id, accion: 'cerrar_dia', entidad: 'caja', id_entidad: cierre.id });
+  res.json({ message: 'Día cerrado correctamente', cierre });
+});
+
+// Reportes
+app.get('/reportes/mensual', authMiddleware, (req, res) => {
+  const { anio, mes } = req.query;
+  const yearNum = Number(anio) || new Date().getFullYear();
+  const monthNum = Number(mes) || new Date().getMonth() + 1;
+
+  const data = readData();
+  const movimientosMes = data.caja.filter((mov) => {
+    const fechaMov = new Date(mov.fecha || mov.fecha_hora || '');
+    return fechaMov.getFullYear() === yearNum && fechaMov.getMonth() + 1 === monthNum;
+  });
+
+  const ingresosRenta = movimientosMes
+    .filter((m) => m.tipo === 'renta')
+    .reduce((acc, curr) => acc + Number(curr.monto || 0), 0);
+  const egresosArbitros = movimientosMes
+    .filter((m) => m.tipo === 'pago_arbitro')
+    .reduce((acc, curr) => acc + Number(curr.monto || 0), 0);
+
+  const detalleMovimientos = movimientosMes
+    .map((mov) => ({
+      fecha: (mov.fecha || mov.fecha_hora || '').slice(0, 10),
+      concepto: mov.concepto,
+      monto: mov.tipo === 'pago_arbitro' ? -Math.abs(Number(mov.monto || 0)) : Number(mov.monto || 0),
+      tipo: mov.tipo,
+    }))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  const totalIngresos = ingresosRenta;
+  const totalEgresos = egresosArbitros;
+
+  res.json({
+    anio: yearNum,
+    mes: monthNum,
+    ingresosRenta,
+    egresosArbitros,
+    totalIngresos,
+    totalEgresos,
+    saldoNeto: totalIngresos - totalEgresos,
+    detalleMovimientos,
+  });
 });
 
 app.get('/bitacora', authMiddleware, (req, res) => {

@@ -17,6 +17,7 @@ type Movimiento = {
 export default function CajaScreen() {
   const { user } = useAuth();
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
+  const [diaCerrado, setDiaCerrado] = useState(false);
   const [loading, setLoading] = useState(false);
   const [montoRenta, setMontoRenta] = useState('');
   const [referencia, setReferencia] = useState('');
@@ -26,7 +27,13 @@ export default function CajaScreen() {
     setLoading(true);
     try {
       const data = await movimientosCaja(user.token);
-      setMovimientos(data);
+      if (Array.isArray(data)) {
+        setMovimientos(data);
+        setDiaCerrado(false);
+      } else {
+        setMovimientos(data.movimientos || []);
+        setDiaCerrado(Boolean(data.cerrado));
+      }
     } catch (error: any) {
       Alert.alert('No se pudo cargar caja', error.message);
     } finally {
@@ -40,6 +47,10 @@ export default function CajaScreen() {
 
   const handleRegistrarRenta = async () => {
     if (!user || !montoRenta.trim()) return;
+    if (diaCerrado) {
+      Alert.alert('Día cerrado', 'No es posible registrar movimientos en un día cerrado.');
+      return;
+    }
     setLoading(true);
     try {
       const movimiento = await registrarRenta(user.token, { monto: Number(montoRenta), referencia: referencia.trim() || undefined });
@@ -75,6 +86,7 @@ export default function CajaScreen() {
           <Text style={{ color: colors.primary }}>{loading ? 'Actualizando...' : 'Refrescar'}</Text>
         </TouchableOpacity>
       </View>
+      {diaCerrado ? <Text style={styles.warning}>El día está cerrado. Solo puedes consultar los movimientos.</Text> : null}
       <View style={styles.form}>
         <Text style={styles.sectionTitle}>Registrar renta rápida</Text>
         <TextInput
@@ -95,7 +107,7 @@ export default function CajaScreen() {
         <TouchableOpacity
           style={[styles.registerButton, !montoRenta.trim() && styles.registerButtonDisabled]}
           onPress={handleRegistrarRenta}
-          disabled={!montoRenta.trim() || loading}
+          disabled={!montoRenta.trim() || loading || diaCerrado}
         >
           <Text style={styles.registerText}>{loading ? 'Guardando...' : 'Registrar renta'}</Text>
         </TouchableOpacity>
@@ -139,4 +151,5 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, color: '#fff' },
   badgeDanger: { backgroundColor: '#E74C3C' },
   badgeSuccess: { backgroundColor: '#2ECC71' },
+  warning: { color: '#D35400', marginTop: 4 },
 });
