@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { CanchaCard } from '../components/CanchaCard';
 import { colors } from '../theme/colors';
-import { registrarRenta } from '../services/api';
+import { crearReserva } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 type Cancha = {
@@ -59,7 +59,15 @@ export default function CanchasScreen() {
 
     setRegistrando(true);
     try {
-      await registrarRenta(user.token, { monto: 240, referencia: `${selectedCanchaId}-${datos.cliente}` });
+      const hoy = new Date().toISOString().slice(0, 10);
+      await crearReserva(user.token, {
+        cancha: selectedCancha.nombre,
+        cliente: datos.cliente.trim(),
+        fecha: hoy,
+        horaInicio: datos.hora.trim(),
+        monto: 240,
+        referencia: `${selectedCanchaId}-${datos.cliente}`,
+      });
       setCanchas((prev) =>
         prev.map((cancha) =>
           cancha.id === selectedCanchaId

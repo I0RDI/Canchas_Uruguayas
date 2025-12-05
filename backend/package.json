@@ -4,7 +4,8 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "backup:db": "node scripts/backup_db.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
