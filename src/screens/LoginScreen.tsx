@@ -5,15 +5,15 @@ import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) return;
+    if (!username.trim() || !password.trim()) return;
     try {
       setLoading(true);
-      await login(email.trim(), password.trim());
+      await login(username.trim(), password.trim());
     } catch (error: any) {
       Alert.alert('Error al ingresar', error.message || 'Revisa tus credenciales');
     } finally {
@@ -28,12 +28,11 @@ export default function LoginScreen() {
         <Text style={styles.subtitle}>Ingresa para gestionar tus canchas</Text>
 
         <TextInput
-          placeholder="Correo electrónico"
+          placeholder="Usuario"
           placeholderTextColor="#85929E"
-          keyboardType="email-address"
           autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
+          value={username}
+          onChangeText={setUsername}
           style={styles.input}
         />
         <TextInput
@@ -48,9 +47,6 @@ export default function LoginScreen() {
         <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
           <Text style={styles.loginText}>{loading ? 'Ingresando...' : 'Ingresar'}</Text>
         </TouchableOpacity>
-        <Text style={styles.helperText}>
-          Usa propietario@club.com (admin123), empleado@club.com (empleado123) o torneos@club.com (empleado123) para probar.
-        </Text>
       </View>
     </View>
   );
