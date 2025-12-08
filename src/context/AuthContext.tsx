@@ -13,7 +13,7 @@ type UserSession = {
 type AuthContextType = {
   user: UserSession | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -38,8 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const response = await loginApi(email, password);
+  const login = async (username: string, password: string) => {
+    const response = await loginApi(username, password);
     const sessionPayload = response.user || response;
     const session: UserSession = { id: sessionPayload.id, nombre: sessionPayload.nombre, rol: sessionPayload.rol, email: sessionPayload.email, token: response.token };
     setUser(session);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +19,8 @@ export default function TorneosScreen() {
   const [canchasSeleccionadas, setCanchasSeleccionadas] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [monthCursor, setMonthCursor] = useState(new Date());
 
   const canchasDisponibles = ['Cancha Grande', 'Cancha 1', 'Cancha 2', 'Cancha 3'];
   const isEditing = editingId !== null;
@@ -28,6 +30,32 @@ export default function TorneosScreen() {
     setFecha('');
     setCanchasSeleccionadas([]);
     setEditingId(null);
+  };
+
+  const daysMatrix = useMemo(() => {
+    const year = monthCursor.getFullYear();
+    const month = monthCursor.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const startWeekday = (firstDay.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: (Date | null)[] = Array.from({ length: startWeekday }, () => null);
+    for (let day = 1; day <= daysInMonth; day++) {
+      cells.push(new Date(year, month, day));
+    }
+    while (cells.length % 7 !== 0) {
+      cells.push(null);
+    }
+    const weeks: (Date | null)[][] = [];
+    for (let i = 0; i < cells.length; i += 7) {
+      weeks.push(cells.slice(i, i + 7));
+    }
+    return weeks;
+  }, [monthCursor]);
+
+  const handleSelectDate = (day: Date) => {
+    const selected = day.toISOString().slice(0, 10);
+    setFecha(selected);
+    setShowDatePicker(false);
   };
 
   const cargar = async () => {
@@ -129,13 +157,43 @@ export default function TorneosScreen() {
           onChangeText={setNombre}
           style={styles.input}
         />
-        <TextInput
-          placeholder="Fecha"
-          placeholderTextColor="#7F8C8D"
-          value={fecha}
-          onChangeText={setFecha}
-          style={styles.input}
-        />
+        <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker((prev) => !prev)}>
+          <Text style={{ color: fecha ? colors.text : '#7F8C8D' }}>
+            {fecha ? `Fecha seleccionada: ${fecha}` : 'Selecciona la fecha'}
+          </Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <View style={styles.calendarBox}>
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity onPress={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1))}>
+                <Text style={{ color: colors.primary }}>{'<'}</Text>
+              </TouchableOpacity>
+              <Text style={styles.calendarTitle}>
+                {monthCursor.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+              </Text>
+              <TouchableOpacity onPress={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1))}>
+                <Text style={{ color: colors.primary }}>{'>'}</Text>
+              </TouchableOpacity>
+            </View>
+            {daysMatrix.map((week, idx) => (
+              <View key={idx} style={styles.weekRow}>
+                {week.map((day, i) => {
+                  const isSelected = day && fecha === day.toISOString().slice(0, 10);
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      style={[styles.dayCell, isSelected && styles.daySelected]}
+                      disabled={!day}
+                      onPress={() => day && handleSelectDate(day)}
+                    >
+                      <Text style={styles.dayText}>{day ? day.getDate() : ''}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+        )}
         <Text style={styles.checkboxLabel}>Selecciona las canchas disponibles</Text>
         <View style={styles.checkboxGroup}>
           {canchasDisponibles.map((cancha) => {
@@ -341,4 +399,28 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
   },
+  calendarBox: {
+    backgroundColor: '#F8F9F9',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 12,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  calendarTitle: { color: colors.text, fontWeight: '600' },
+  weekRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  dayCell: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: '#E5E7E9',
+  },
+  daySelected: { backgroundColor: colors.primary },
+  dayText: { color: colors.text, fontWeight: '700' },
 });

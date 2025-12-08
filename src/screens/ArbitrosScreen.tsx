@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { actualizarArbitro, crearArbitro, crearPartido, eliminarArbitro, obtenerArbitros, pagarArbitro } from '../services/api';
+import { actualizarArbitro, crearArbitro, eliminarArbitro, obtenerArbitros } from '../services/api';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 
 type Arbitro = { id: string; nombre: string; telefono?: string; activo?: boolean };
-type Partido = { id: string; arbitroId: string; torneoId?: string | null; fecha: string; pagado?: boolean; pagoId?: string };
 
 export default function ArbitrosScreen() {
   const { user } = useAuth();
@@ -14,10 +13,6 @@ export default function ArbitrosScreen() {
   const [telefono, setTelefono] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [nuevoPartidoArbitroId, setNuevoPartidoArbitroId] = useState('');
-  const [nuevoPartidoTorneoId, setNuevoPartidoTorneoId] = useState('');
-  const [nuevoPartidoFecha, setNuevoPartidoFecha] = useState('');
-  const [partidos, setPartidos] = useState<Partido[]>([]);
 
   const cargar = async () => {
     if (!user) return;
@@ -44,6 +39,10 @@ export default function ArbitrosScreen() {
 
   const handleGuardar = async () => {
     if (!user || !nombre.trim()) return;
+    if (telefono && telefono.replace(/\D/g, '').length !== 10) {
+      Alert.alert('Teléfono inválido', 'El número debe tener exactamente 10 dígitos.');
+      return;
+    }
     try {
       if (editing) {
         const updated = await actualizarArbitro(user.token, editing, { nombre: nombre.trim(), telefono });
@@ -63,35 +62,9 @@ export default function ArbitrosScreen() {
     try {
       await eliminarArbitro(user.token, id);
       setArbitros((prev) => prev.filter((a) => a.id !== id));
+      if (editing === id) reset();
     } catch (error: any) {
       Alert.alert('No se pudo eliminar', error.message);
-    }
-  };
-
-  const handleCrearPartido = async () => {
-    if (!user || !nuevoPartidoArbitroId.trim()) return;
-    try {
-      const partido = await crearPartido(user.token, {
-        arbitroId: nuevoPartidoArbitroId.trim(),
-        torneoId: nuevoPartidoTorneoId.trim() || undefined,
-        fecha: nuevoPartidoFecha.trim() || undefined,
-      });
-      setPartidos((prev) => [partido, ...prev]);
-      Alert.alert('Partido creado', `ID: ${partido.id}`);
-      setNuevoPartidoFecha('');
-    } catch (error: any) {
-      Alert.alert('No se pudo crear el partido', error.message);
-    }
-  };
-
-  const handlePagoArbitro = async (id: string) => {
-    if (!user) return;
-    try {
-      await pagarArbitro(user.token, id);
-      setPartidos((prev) => prev.map((p) => (p.id === id ? { ...p, pagado: true } : p)));
-      Alert.alert('Pago registrado', 'El movimiento se agregó a caja.');
-    } catch (error: any) {
-      Alert.alert('No se pudo pagar', error.message);
     }
   };
 
@@ -108,9 +81,10 @@ export default function ArbitrosScreen() {
           onChangeText={setNombre}
         />
         <TextInput
-          placeholder="Teléfono"
+          placeholder="Teléfono (10 dígitos)"
           placeholderTextColor="#7F8C8D"
           style={styles.input}
+          keyboardType="phone-pad"
           value={telefono}
           onChangeText={setTelefono}
         />
@@ -145,15 +119,15 @@ export default function ArbitrosScreen() {
               {item.activo === false && <Text style={styles.itemMeta}>Inactivo</Text>}
             </View>
             <View style={styles.row}>
-              <TouchableOpacity style={[styles.smallBtn, styles.primary]} onPress={() => {
-                setEditing(item.id);
-                setNombre(item.nombre);
-                setTelefono(item.telefono || '');
-              }}>
+              <TouchableOpacity
+                style={[styles.smallBtn, styles.primary]}
+                onPress={() => {
+                  setEditing(item.id);
+                  setNombre(item.nombre);
+                  setTelefono(item.telefono || '');
+                }}
+              >
                 <Text style={styles.buttonText}>Editar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.smallBtn, styles.secondary]} onPress={() => setNuevoPartidoArbitroId(item.id)}>
-                <Text style={styles.buttonText}>Usar ID</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.smallBtn, styles.danger]} onPress={() => handleDelete(item.id)}>
                 <Text style={styles.buttonText}>Eliminar</Text>
@@ -162,60 +136,6 @@ export default function ArbitrosScreen() {
           </View>
         )}
       />
-
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Partidos de prueba y pagos de árbitro</Text>
-        <TextInput
-          placeholder="ID del árbitro"
-          placeholderTextColor="#7F8C8D"
-          style={styles.input}
-          value={nuevoPartidoArbitroId}
-          onChangeText={setNuevoPartidoArbitroId}
-        />
-        <TextInput
-          placeholder="ID del torneo (opcional)"
-          placeholderTextColor="#7F8C8D"
-          style={styles.input}
-          value={nuevoPartidoTorneoId}
-          onChangeText={setNuevoPartidoTorneoId}
-        />
-        <TextInput
-          placeholder="Fecha ISO (opcional)"
-          placeholderTextColor="#7F8C8D"
-          style={styles.input}
-          value={nuevoPartidoFecha}
-          onChangeText={setNuevoPartidoFecha}
-        />
-        <TouchableOpacity
-          style={[styles.button, styles.primary, !nuevoPartidoArbitroId.trim() && styles.disabledBtn]}
-          disabled={!nuevoPartidoArbitroId.trim()}
-          onPress={handleCrearPartido}
-        >
-          <Text style={styles.buttonText}>Crear partido</Text>
-        </TouchableOpacity>
-
-        <FlatList
-          data={partidos}
-          keyExtractor={(item) => item.id}
-          ListEmptyComponent={<Text style={styles.itemMeta}>Crea un partido para habilitar el pago.</Text>}
-          renderItem={({ item }) => (
-            <View style={[styles.listItem, { marginTop: 8 }]}> 
-              <View>
-                <Text style={styles.itemTitle}>ID: {item.id}</Text>
-                <Text style={styles.itemMeta}>Árbitro: {item.arbitroId}</Text>
-                {item.torneoId ? <Text style={styles.itemMeta}>Torneo: {item.torneoId}</Text> : null}
-              </View>
-              <TouchableOpacity
-                style={[styles.smallBtn, item.pagado ? styles.secondary : styles.primary]}
-                onPress={() => handlePagoArbitro(item.id)}
-                disabled={item.pagado}
-              >
-                <Text style={styles.buttonText}>{item.pagado ? 'Pagado' : 'Pagar árbitro'}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        />
-      </View>
     </View>
   );
 }

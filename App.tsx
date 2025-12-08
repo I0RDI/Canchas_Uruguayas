@@ -12,11 +12,11 @@ import ArbitrosScreen from './src/screens/ArbitrosScreen';
 import CajaScreen from './src/screens/CajaScreen';
 
 const TAB_CONFIG = [
-  { name: 'Torneos', component: TorneosScreen, roles: ['propietario', 'empleado2'] },
-  { name: 'Arbitros', component: ArbitrosScreen, roles: ['propietario', 'empleado2'] },
-  { name: 'Canchas', component: CanchasScreen, roles: ['propietario', 'empleado1'] },
-  { name: 'Calendario', component: CalendarioScreen, roles: ['propietario', 'empleado1'] },
-  { name: 'Caja', component: CajaScreen, roles: ['propietario', 'empleado1'] },
+  { name: 'Torneos', component: TorneosScreen, roles: ['propietario', 'empleado'] },
+  { name: 'Arbitros', component: ArbitrosScreen, roles: ['propietario', 'empleado'] },
+  { name: 'Canchas', component: CanchasScreen, roles: ['propietario', 'empleado'] },
+  { name: 'Calendario', component: CalendarioScreen, roles: ['propietario', 'empleado'] },
+  { name: 'Caja', component: CajaScreen, roles: ['propietario', 'empleado'] },
   { name: 'Ajustes', component: AjustesScreen, roles: ['propietario'] },
 ];
 
