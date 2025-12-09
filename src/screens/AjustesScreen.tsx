@@ -99,7 +99,11 @@ export default function AjustesScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.title}>Ajustes</Text>
       <Text style={styles.subtitle}>Reportes, cierres y herramientas administrativas.</Text>
 
@@ -246,10 +250,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    flex: 1,
     backgroundColor: colors.background,
     padding: 24,
     gap: 16,
+    paddingBottom: 48,
   },
   title: { fontSize: 24, fontWeight: 'bold', color: colors.text },
   subtitle: { fontSize: 16, color: colors.text },
