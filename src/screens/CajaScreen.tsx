@@ -22,6 +22,7 @@ export default function CajaScreen() {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [diaCerrado, setDiaCerrado] = useState(false);
   const [diaAbierto, setDiaAbierto] = useState(false);
+  const [diaEnCurso, setDiaEnCurso] = useState('');
   const [loading, setLoading] = useState(false);
   const [monto, setMonto] = useState('');
   const [tipoMovimiento, setTipoMovimiento] = useState<'cancha' | 'torneo'>('cancha');
@@ -44,10 +45,12 @@ export default function CajaScreen() {
         setMovimientos(data);
         setDiaCerrado(false);
         setDiaAbierto(true);
+        setDiaEnCurso(new Date().toISOString().slice(0, 10));
       } else {
         setMovimientos(data.movimientos || []);
         setDiaCerrado(Boolean(data.cerrado));
         setDiaAbierto(Boolean(data.abierto));
+        setDiaEnCurso(data.diaConsulta || new Date().toISOString().slice(0, 10));
       }
     } catch (error: any) {
       Alert.alert('No se pudo cargar caja', error.message);
@@ -216,6 +219,7 @@ export default function CajaScreen() {
           <Text style={{ color: colors.primary }}>{loading ? 'Actualizando...' : 'Refrescar'}</Text>
         </TouchableOpacity>
       </View>
+      <Text style={styles.meta}>Día en curso: {diaEnCurso || 'Sin abrir'}</Text>
       {diaCerrado ? <Text style={styles.warning}>El día está cerrado. Solo puedes consultar los movimientos.</Text> : null}
       {!diaAbierto ? (
         <Text style={styles.warning}>Debes abrir el día desde Ajustes para registrar ventas.</Text>
