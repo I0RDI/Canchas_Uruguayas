@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { CanchaCard } from '../components/CanchaCard';
 import { colors } from '../theme/colors';
-import { actualizarCanchaReserva, crearReserva, liberarCancha, obtenerCanchas } from '../services/api';
+import { actualizarCanchaReserva, crearReserva, liberarCancha, obtenerCanchas, obtenerDiaAbiertoActual } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 type Cancha = {
@@ -22,7 +23,17 @@ export default function CanchasScreen() {
   const [selectedCanchaId, setSelectedCanchaId] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<Record<string, { hora: string; cliente: string }>>({});
   const [registrando, setRegistrando] = useState(false);
+  const [registrandoFuturo, setRegistrandoFuturo] = useState(false);
   const [showHourPicker, setShowHourPicker] = useState(false);
+  const [showFutureHourPicker, setShowFutureHourPicker] = useState(false);
+  const [showFutureCanchaPicker, setShowFutureCanchaPicker] = useState(false);
+  const [diaAbiertoActual, setDiaAbiertoActual] = useState<string | null>(null);
+  const [futureReserva, setFutureReserva] = useState<{ canchaId: string; cliente: string; fecha: string; hora: string }>({
+    canchaId: '',
+    cliente: '',
+    fecha: '',
+    hora: '',
+  });
 
   const timeOptions = useMemo(() => {
     const base: string[] = [];
@@ -50,18 +61,35 @@ export default function CanchasScreen() {
     }));
   };
 
-  const cargarCanchas = async () => {
+  const cargarCanchas = useCallback(async () => {
     if (!user) return;
     const data = await obtenerCanchas(user.token);
     setCanchas(data as Cancha[]);
     if (!selectedCanchaId && data.length) {
       setSelectedCanchaId(data[0].id);
     }
-  };
+    if (!futureReserva.canchaId && data.length) {
+      setFutureReserva((prev) => ({ ...prev, canchaId: data[0].id }));
+    }
+  }, [futureReserva.canchaId, selectedCanchaId, user]);
+
+  const cargarDiaAbierto = useCallback(async () => {
+    if (!user) return;
+    const data = await obtenerDiaAbiertoActual();
+    setDiaAbiertoActual(data.diaAbiertoActual || null);
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      cargarDiaAbierto();
+      cargarCanchas();
+    }, [cargarCanchas, cargarDiaAbierto]),
+  );
 
   useEffect(() => {
+    cargarDiaAbierto();
     cargarCanchas();
-  }, [user]);
+  }, [cargarCanchas, cargarDiaAbierto]);
 
   useEffect(() => {
     if (selectedCancha) {
@@ -82,19 +110,27 @@ export default function CanchasScreen() {
       return;
     }
 
+    if (!diaAbiertoActual) {
+      Alert.alert('Día no abierto', 'Abre el día desde Ajustes para poder ocupar una cancha.');
+      return;
+    }
+
     setRegistrando(true);
     try {
-      const hoy = new Date().toISOString().slice(0, 10);
+      const fechaReserva = selectedCancha.alquiler?.fecha || diaAbiertoActual;
       if (selectedCancha?.estado === 'Ocupada') {
         await actualizarCanchaReserva(user.token, selectedCanchaId, {
           hora: datos.hora.trim(),
           cliente: datos.cliente.trim(),
-          fecha: hoy,
+          fecha: fechaReserva,
         });
         setCanchas((prev) =>
           prev.map((cancha) =>
             cancha.id === selectedCanchaId
-              ? { ...cancha, alquiler: { ...(cancha.alquiler || { fecha: hoy }), hora: datos.hora.trim(), cliente: datos.cliente.trim() } }
+              ? {
+                  ...cancha,
+                  alquiler: { ...(cancha.alquiler || { fecha: fechaReserva }), hora: datos.hora.trim(), cliente: datos.cliente.trim(), fecha: fechaReserva },
+                }
               : cancha,
           ),
         );
@@ -103,7 +139,7 @@ export default function CanchasScreen() {
         await crearReserva(user.token, {
           cancha: selectedCancha.nombre,
           cliente: datos.cliente.trim(),
-          fecha: hoy,
+          fecha: fechaReserva,
           horaInicio: datos.hora.trim(),
         });
         setCanchas((prev) =>
@@ -112,7 +148,7 @@ export default function CanchasScreen() {
               ? {
                   ...cancha,
                   estado: 'Ocupada',
-                  alquiler: { hora: datos.hora.trim(), cliente: datos.cliente.trim(), fecha: hoy },
+                  alquiler: { hora: datos.hora.trim(), cliente: datos.cliente.trim(), fecha: fechaReserva },
                 }
               : cancha,
           ),
@@ -126,6 +162,40 @@ export default function CanchasScreen() {
     }
   };
 
+  const handleGuardarReservaFutura = async () => {
+    if (!user) return;
+    if (!futureReserva.canchaId || !futureReserva.cliente.trim() || !futureReserva.fecha.trim() || !futureReserva.hora.trim()) {
+      Alert.alert('Datos faltantes', 'Completa cancha, fecha, hora y nombre del cliente para registrar la reserva.');
+      return;
+    }
+
+    const fechaValida = !Number.isNaN(new Date(futureReserva.fecha).getTime());
+    if (!fechaValida) {
+      Alert.alert('Fecha inválida', 'Usa el formato YYYY-MM-DD para la fecha de la reserva.');
+      return;
+    }
+
+    setRegistrandoFuturo(true);
+    try {
+      const canchaSeleccionada = canchas.find((c) => c.id === futureReserva.canchaId);
+      await crearReserva(user.token, {
+        cancha: canchaSeleccionada?.nombre || futureReserva.canchaId,
+        cliente: futureReserva.cliente.trim(),
+        fecha: futureReserva.fecha.trim(),
+        horaInicio: futureReserva.hora.trim(),
+        marcarOcupada: false,
+      });
+      Alert.alert('Reserva futura guardada', 'La reserva se registró en el calendario sin afectar el estado actual.');
+      setFutureReserva((prev) => ({ ...prev, cliente: '', fecha: '', hora: '' }));
+      setShowFutureCanchaPicker(false);
+      setShowFutureHourPicker(false);
+    } catch (error: any) {
+      Alert.alert('No se pudo registrar', error.message);
+    } finally {
+      setRegistrandoFuturo(false);
+    }
+  };
+
   const handleDesocupar = async () => {
     if (!selectedCanchaId || !user) return;
     await liberarCancha(user.token, selectedCanchaId);
@@ -136,6 +206,9 @@ export default function CanchasScreen() {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Canchas Disponibles</Text>
+      <Text style={styles.meta}>
+        Día abierto: {diaAbiertoActual ?? 'Ninguno (abre el día desde Ajustes para ocupar canchas en tiempo real)'}
+      </Text>
       <View style={styles.grid}>
         {canchas.map((cancha) => (
           <CanchaCard
@@ -202,6 +275,76 @@ export default function CanchasScreen() {
         )}
       </View>
 
+      <View style={styles.detailCard}>
+        <Text style={styles.detailTitle}>Reservas para fechas futuras</Text>
+        <Text style={styles.meta}>Registra rentas en otros días sin cambiar el estado actual de las canchas.</Text>
+        <TouchableOpacity style={styles.input} onPress={() => setShowFutureCanchaPicker((prev) => !prev)}>
+          <Text style={{ color: futureReserva.canchaId ? colors.text : '#7F8C8D' }}>
+            {canchas.find((c) => c.id === futureReserva.canchaId)?.nombre || 'Selecciona una cancha'}
+          </Text>
+        </TouchableOpacity>
+        {showFutureCanchaPicker && (
+          <View style={styles.dropdown}>
+            {canchas.map((cancha) => (
+              <TouchableOpacity
+                key={cancha.id}
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setFutureReserva((prev) => ({ ...prev, canchaId: cancha.id }));
+                  setShowFutureCanchaPicker(false);
+                }}
+              >
+                <Text style={{ color: colors.text }}>{cancha.nombre}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        <TextInput
+          placeholder="Fecha de la reserva (YYYY-MM-DD)"
+          placeholderTextColor="#7F8C8D"
+          value={futureReserva.fecha}
+          onChangeText={(text) => setFutureReserva((prev) => ({ ...prev, fecha: text }))}
+          style={styles.input}
+        />
+        <TouchableOpacity style={styles.input} onPress={() => setShowFutureHourPicker((prev) => !prev)}>
+          <Text style={{ color: futureReserva.hora ? colors.text : '#7F8C8D' }}>
+            {futureReserva.hora || 'Selecciona hora y turno'}
+          </Text>
+        </TouchableOpacity>
+        {showFutureHourPicker && (
+          <View style={styles.dropdown}>
+            {timeOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setFutureReserva((prev) => ({ ...prev, hora: opt }));
+                  setShowFutureHourPicker(false);
+                }}
+              >
+                <Text style={{ color: colors.text }}>{opt}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        <TextInput
+          placeholder="Nombre de quien renta"
+          placeholderTextColor="#7F8C8D"
+          value={futureReserva.cliente}
+          onChangeText={(text) => setFutureReserva((prev) => ({ ...prev, cliente: text }))}
+          style={styles.input}
+        />
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={[styles.saveButton, styles.saveButtonCentered]}
+            onPress={handleGuardarReservaFutura}
+            disabled={registrandoFuturo}
+          >
+            <Text style={styles.saveButtonText}>{registrandoFuturo ? 'Guardando...' : 'Guardar reserva'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
     </ScrollView>
   );
 }
@@ -214,6 +357,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginBottom: 20,
+  },
+  meta: {
+    color: '#566573',
+    marginBottom: 12,
   },
   detailCard: {
     backgroundColor: colors.card,

@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
-import { calendarioDia } from '../services/api';
+import { calendarioDia, obtenerDiaAbiertoActual } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const dayLabels = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
@@ -30,6 +31,7 @@ const getDaysMatrix = (date: Date) => {
 export default function CalendarioScreen() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [diaAbiertoActual, setDiaAbiertoActual] = useState<string | null>(null);
   const [reservas, setReservas] = useState<any[]>([]);
   const [partidos, setPartidos] = useState<any[]>([]);
   const [torneos, setTorneos] = useState<any[]>([]);
@@ -40,7 +42,7 @@ export default function CalendarioScreen() {
   const monthLabel = selectedDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
   const calendar = useMemo(() => getDaysMatrix(selectedDate), [selectedDate]);
 
-  const fetchEventos = async () => {
+  const fetchEventos = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     setError(null);
@@ -57,11 +59,34 @@ export default function CalendarioScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDayString, user]);
 
   useEffect(() => {
     fetchEventos();
-  }, [selectedDayString, user]);
+  }, [fetchEventos]);
+
+  const cargarDiaAbierto = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await obtenerDiaAbiertoActual();
+      setDiaAbiertoActual(data.diaAbiertoActual);
+      if (data.diaAbiertoActual) {
+        const parsed = new Date(data.diaAbiertoActual);
+        if (!Number.isNaN(parsed.getTime())) {
+          setSelectedDate(parsed);
+        }
+      }
+    } catch (err: any) {
+      console.warn('No se pudo obtener el día abierto', err.message);
+    }
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      cargarDiaAbierto();
+      fetchEventos();
+    }, [cargarDiaAbierto, fetchEventos]),
+  );
 
   const handleChangeMonth = (delta: number) => {
     const next = new Date(selectedDate);

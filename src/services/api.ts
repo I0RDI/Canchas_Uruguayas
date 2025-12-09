@@ -6,6 +6,7 @@ type Torneo = { id: string; nombre: string; fecha: string; canchas: string[] };
 type Arbitro = { id: string; nombre: string; telefono?: string; activo?: boolean };
 type Partido = { id: string; arbitroId: string; torneoId?: string | null; fecha?: string; pagado?: boolean; pagoId?: string };
 type CanchaEstado = { id: string; nombre: string; estado: 'Libre' | 'Ocupada'; alquiler?: { hora: string; cliente: string; fecha: string } | null };
+type Reserva = { id: string; canchaId: string; cancha: string; cliente: string; fecha: string; horaInicio: string };
 type Movimiento = {
   id: string;
   concepto: string;
@@ -31,6 +32,7 @@ type LocalDb = {
   arbitros: Arbitro[];
   partidos: Partido[];
   canchas: CanchaEstado[];
+  reservas: Reserva[];
   caja: Movimiento[];
   cierres: Cierre[];
   aperturas: string[];
@@ -48,6 +50,7 @@ const defaultDb: LocalDb = {
     { id: 'cancha-3', nombre: 'Cancha 3', estado: 'Libre', alquiler: null },
     { id: 'cancha-4', nombre: 'Cancha 4', estado: 'Libre', alquiler: null },
   ],
+  reservas: [],
   caja: [],
   cierres: [],
   aperturas: [],
@@ -75,6 +78,7 @@ async function loadDb(): Promise<LocalDb> {
     torneos: parsed.torneos || [],
     arbitros: parsed.arbitros || [],
     partidos: parsed.partidos || [],
+    reservas: parsed.reservas || [],
     caja: parsed.caja || [],
     cierres: parsed.cierres || [],
     aperturas: parsed.aperturas || [],
@@ -186,23 +190,54 @@ export async function pagarArbitro(_: string = '', partidoId: string) {
 
 export async function crearReserva(
   _: string,
-  payload: { cancha: string; cliente: string; fecha: string; horaInicio: string; horaFin?: string; monto?: number; referencia?: string },
+  payload: {
+    cancha: string;
+    cliente: string;
+    fecha: string;
+    horaInicio: string;
+    horaFin?: string;
+    monto?: number;
+    referencia?: string;
+    marcarOcupada?: boolean;
+  },
 ) {
   const db = await loadDb();
   const cancha = db.canchas.find((c) => c.nombre === payload.cancha || c.id === payload.cancha);
   if (!cancha) throw new Error('Cancha no encontrada');
-  cancha.estado = 'Ocupada';
-  cancha.alquiler = { hora: payload.horaInicio, cliente: payload.cliente, fecha: payload.fecha };
+
+  const marcarOcupada = payload.marcarOcupada !== false;
+  if (marcarOcupada) {
+    if (!db.diaAbiertoActual || db.diaAbiertoActual !== payload.fecha) {
+      throw new Error('Debes abrir el día desde Ajustes antes de ocupar una cancha.');
+    }
+    cancha.estado = 'Ocupada';
+    cancha.alquiler = { hora: payload.horaInicio, cliente: payload.cliente, fecha: payload.fecha };
+  }
+
+  const nuevaReserva: Reserva = {
+    id: generateId('reserva'),
+    canchaId: cancha.id,
+    cancha: cancha.nombre,
+    cliente: payload.cliente,
+    fecha: payload.fecha,
+    horaInicio: payload.horaInicio,
+  };
+
+  db.reservas = [nuevaReserva, ...db.reservas.filter((r) => !(r.canchaId === cancha.id && r.fecha === payload.fecha))];
   await saveDb(db);
-  return cancha;
+  return marcarOcupada ? cancha : nuevaReserva;
 }
 
 export async function liberarCancha(_: string, canchaId: string) {
   const db = await loadDb();
   const cancha = db.canchas.find((c) => c.id === canchaId);
   if (!cancha) throw new Error('Cancha no encontrada');
+  const fechaAlquiler = cancha.alquiler?.fecha;
   cancha.estado = 'Libre';
   cancha.alquiler = null;
+  if (fechaAlquiler) {
+    db.reservas = db.reservas.filter((r) => !(r.canchaId === canchaId && r.fecha === fechaAlquiler));
+  }
   await saveDb(db);
   return cancha;
 }
@@ -216,6 +251,16 @@ export async function actualizarCanchaReserva(
   const cancha = db.canchas.find((c) => c.id === canchaId);
   if (!cancha || !cancha.alquiler) throw new Error('La cancha no tiene una renta activa');
   cancha.alquiler = { ...cancha.alquiler, ...{ cliente: payload.cliente ?? cancha.alquiler.cliente, hora: payload.hora ?? cancha.alquiler.hora, fecha: payload.fecha ?? cancha.alquiler.fecha } };
+  const fechaReserva = cancha.alquiler.fecha;
+  const idxReserva = db.reservas.findIndex((r) => r.canchaId === canchaId && r.fecha === fechaReserva);
+  if (idxReserva !== -1) {
+    db.reservas[idxReserva] = {
+      ...db.reservas[idxReserva],
+      cliente: payload.cliente ?? db.reservas[idxReserva].cliente,
+      horaInicio: payload.hora ?? db.reservas[idxReserva].horaInicio,
+      fecha: payload.fecha ?? db.reservas[idxReserva].fecha,
+    };
+  }
   await saveDb(db);
   return cancha;
 }
@@ -255,7 +300,16 @@ export async function registrarRenta(
 
 export async function calendarioDia(_: string, fecha: string) {
   const db = await loadDb();
-  const reservas = db.canchas
+  const reservasRegistradas = db.reservas
+    .filter((r) => r.fecha === fecha)
+    .map((r) => ({
+      id: r.id,
+      tipo: 'reserva',
+      cliente: r.cliente,
+      horaInicio: r.horaInicio,
+      cancha: r.cancha,
+    }));
+  const reservasActivas = db.canchas
     .filter((c) => c.alquiler && c.alquiler.fecha === fecha)
     .map((c) => ({
       id: c.id,
@@ -263,12 +317,21 @@ export async function calendarioDia(_: string, fecha: string) {
       cliente: c.alquiler?.cliente,
       horaInicio: c.alquiler?.hora,
       cancha: c.nombre,
-    }));
+    }))
+    .filter(
+      (res) => !reservasRegistradas.some((registrada) => registrada.cancha === res.cancha && registrada.horaInicio === res.horaInicio),
+    );
+  const reservas = [...reservasRegistradas, ...reservasActivas];
   const partidos = db.partidos.filter((p) => p.fecha?.slice(0, 10) === fecha).map((p) => ({ ...p, tipo: 'partido' }));
   const torneos = db.torneos
     .filter((t) => t.fecha === fecha)
     .map((t) => ({ id: t.id, tipo: 'torneo', nombre: t.nombre, horaInicio: t.fecha, canchas: t.canchas }));
   return { reservas, partidos, torneos };
+}
+
+export async function obtenerDiaAbiertoActual() {
+  const db = await loadDb();
+  return { diaAbiertoActual: db.diaAbiertoActual, aperturas: db.aperturas };
 }
 
 export async function reporteMensual(_: string, anio: number, mes: number) {
