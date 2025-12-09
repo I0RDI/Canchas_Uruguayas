@@ -1,14 +1,95 @@
 {
   "users": [
-    { "id": "u1", "email": "propietario@club.com", "password": "admin123", "nombre": "Propietario", "rol": "propietario" },
-    { "id": "u2", "email": "empleado@club.com", "password": "empleado123", "nombre": "Empleado", "rol": "empleado1" },
-    { "id": "u3", "email": "torneos@club.com", "password": "empleado123", "nombre": "Empleado Torneos", "rol": "empleado2" }
+    {
+      "id": "u1",
+      "email": "propietario@club.com",
+      "password": "admin123",
+      "nombre": "Propietario",
+      "rol": "propietario"
+    },
+    {
+      "id": "u2",
+      "email": "empleado@club.com",
+      "password": "empleado123",
+      "nombre": "Empleado",
+      "rol": "empleado1"
+    }
   ],
   "torneos": [],
   "arbitros": [],
   "caja": [],
-  "bitacora": [],
+  "bitacora": [
+    {
+      "id": "lB24CaNfUKldosMxQgU2X",
+      "fecha_hora": "2025-12-08T23:32:23.183Z",
+      "usuario_id": "u1",
+      "accion": "cerrar_dia",
+      "entidad": "caja",
+      "id_entidad": "fYJcZm6uzu3kdYfrcwvO4"
+    },
+    {
+      "id": "Ko5h5Ch_iCFxrzXuqhtwm",
+      "fecha_hora": "2025-12-08T23:10:32.269Z",
+      "usuario_id": "u1",
+      "accion": "login",
+      "entidad": "usuario",
+      "id_entidad": "u1"
+    },
+    {
+      "id": "753ad2zlBzo_XcYTaklqV",
+      "fecha_hora": "2025-12-06T03:05:02.911Z",
+      "usuario_id": "u1",
+      "accion": "cerrar_dia",
+      "entidad": "caja",
+      "id_entidad": "D_ztEZutw7B_SUNVtZIsi"
+    },
+    {
+      "id": "He7vnodDYi_ril922f9La",
+      "fecha_hora": "2025-12-06T03:02:36.139Z",
+      "usuario_id": "u1",
+      "accion": "login",
+      "entidad": "usuario",
+      "id_entidad": "u1"
+    },
+    {
+      "id": "EnpPkvo2roiZ6Qcl9RJPg",
+      "fecha": "2025-11-29T02:15:02.456Z",
+      "usuario_id": "u1",
+      "accion": "login",
+      "entidad": "login",
+      "id_entidad": "u1"
+    },
+    {
+      "id": "Oi2oWIfAZ22s5n8hBQ970",
+      "fecha": "2025-11-29T01:30:22.177Z",
+      "usuario_id": "u1",
+      "accion": "login",
+      "entidad": "login",
+      "id_entidad": "u1"
+    }
+  ],
   "partidos": [],
   "reservas": [],
-  "cierresDiarios": []
+  "cierresDiarios": [
+    {
+      "id": "fYJcZm6uzu3kdYfrcwvO4",
+      "fecha": "2025-12-08",
+      "ingresos": 0,
+      "egresos": 0,
+      "saldoNeto": 0,
+      "totalMovimientos": 0,
+      "usuario_id": "u1",
+      "fecha_cierre": "2025-12-08T23:32:23.182Z"
+    },
+    {
+      "id": "D_ztEZutw7B_SUNVtZIsi",
+      "fecha": "2025-12-06",
+      "ingresos": 0,
+      "egresos": 0,
+      "saldoNeto": 0,
+      "totalMovimientos": 0,
+      "usuario_id": "u1",
+      "fecha_cierre": "2025-12-06T03:05:02.910Z"
+    }
+  ]
 }

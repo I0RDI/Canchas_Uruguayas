@@ -24,7 +24,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>Bienvenido</Text>
+        <Text style={styles.title}>Canchas Uruguayas</Text>
         <Text style={styles.subtitle}>Ingresa para gestionar tus canchas</Text>
 
         <TextInput
