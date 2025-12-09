@@ -5,7 +5,7 @@ import { abrirDia, cerrarDia, reporteMensual } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function AjustesScreen() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const now = new Date();
   const months = useMemo(
     () => ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
@@ -67,7 +67,7 @@ export default function AjustesScreen() {
     try {
       const resp = await cerrarDia(user.token, diaLegible, password);
       setResumenCierre(resp);
-      Alert.alert('Cierre completado', resp.message || 'Se cerró el día.');
+      Alert.alert('Cierre completado', resp.message || `Se cerró el día con un total de $${resp.total?.toFixed?.(2) ?? resp.total}.`);
     } catch (error: any) {
       Alert.alert('No se pudo cerrar', error.message);
     } finally {
@@ -106,6 +106,10 @@ export default function AjustesScreen() {
     >
       <Text style={styles.title}>Ajustes</Text>
       <Text style={styles.subtitle}>Reportes, cierres y herramientas administrativas.</Text>
+
+      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+        <Text style={styles.logoutText}>Cerrar Sesión</Text>
+      </TouchableOpacity>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Reporte mensual</Text>
@@ -257,6 +261,16 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 24, fontWeight: 'bold', color: colors.text },
   subtitle: { fontSize: 16, color: colors.text },
+  logoutButton: {
+    backgroundColor: '#C0392B',
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  logoutText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
   card: {
     backgroundColor: colors.card,
     borderRadius: 18,

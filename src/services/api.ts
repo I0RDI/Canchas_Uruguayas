@@ -22,6 +22,10 @@ type Cierre = {
   egresos: number;
 };
 
+type DiaAbiertoState = {
+  diaAbiertoActual: string | null;
+};
+
 type LocalDb = {
   torneos: Torneo[];
   arbitros: Arbitro[];
@@ -30,6 +34,7 @@ type LocalDb = {
   caja: Movimiento[];
   cierres: Cierre[];
   aperturas: string[];
+  diaAbiertoActual: DiaAbiertoState['diaAbiertoActual'];
 };
 
 const defaultDb: LocalDb = {
@@ -46,6 +51,7 @@ const defaultDb: LocalDb = {
   caja: [],
   cierres: [],
   aperturas: [],
+  diaAbiertoActual: null,
 };
 
 function generateId(prefix: string) {
@@ -72,6 +78,7 @@ async function loadDb(): Promise<LocalDb> {
     caja: parsed.caja || [],
     cierres: parsed.cierres || [],
     aperturas: parsed.aperturas || [],
+    diaAbiertoActual: parsed.diaAbiertoActual || null,
   } as LocalDb;
 }
 
@@ -216,10 +223,11 @@ export async function actualizarCanchaReserva(
 export async function movimientosCaja(_: string, fecha?: string) {
   const db = await loadDb();
   const hoy = fecha || new Date().toISOString().slice(0, 10);
-  const movimientosDia = db.caja.filter((m) => (m.fecha || '').slice(0, 10) === hoy);
-  const cerrado = db.cierres.some((c) => c.fecha === hoy);
-  const abierto = db.aperturas.includes(hoy);
-  return { movimientos: movimientosDia, cerrado, abierto };
+  const diaConsulta = db.diaAbiertoActual || hoy;
+  const movimientosDia = db.caja.filter((m) => (m.fecha || '').slice(0, 10) === diaConsulta);
+  const cerrado = db.cierres.some((c) => c.fecha === diaConsulta);
+  const abierto = db.diaAbiertoActual === diaConsulta;
+  return { movimientos: movimientosDia, cerrado, abierto, diaConsulta };
 }
 
 export async function registrarRenta(
@@ -227,12 +235,17 @@ export async function registrarRenta(
   payload: { monto: number; referencia?: string; concepto: string; tipo: Movimiento['tipo']; detalle?: Record<string, any>; fecha?: string },
 ) {
   const db = await loadDb();
+  if (!db.diaAbiertoActual) {
+    throw new Error('Debes abrir el día desde Ajustes para registrar ventas.');
+  }
+  const fechaMovimiento = payload.fecha || new Date().toISOString();
+  const fechaForzada = `${db.diaAbiertoActual}T${new Date(fechaMovimiento).toISOString().slice(11)}`;
   const movimiento: Movimiento = {
     id: generateId('mov'),
     concepto: payload.concepto,
     tipo: payload.tipo,
     monto: Number(Number(payload.monto).toFixed(2)),
-    fecha: payload.fecha || new Date().toISOString(),
+    fecha: fechaForzada,
     detalle: payload.detalle,
   };
   db.caja = [movimiento, ...db.caja];
@@ -261,13 +274,31 @@ export async function calendarioDia(_: string, fecha: string) {
 export async function reporteMensual(_: string, anio: number, mes: number) {
   const db = await loadDb();
   const mesStr = String(mes).padStart(2, '0');
-  const movimientosMes = db.caja.filter((m) => (m.fecha || '').startsWith(`${anio}-${mesStr}`) && m.tipo !== 'pago_arbitro');
-  const ingresos = movimientosMes.filter((m) => m.monto > 0).reduce((acc, m) => acc + m.monto, 0);
-  const egresos = movimientosMes.filter((m) => m.monto < 0).reduce((acc, m) => acc + Math.abs(m.monto), 0);
-  const detalleMovimientos = movimientosMes.map((m) => ({
-    ...m,
-    fechaLegible: new Date(m.fecha).toLocaleString('es-ES', { hour12: false }),
-  }));
+  const movimientosEnCaja = db.caja.filter((m) => (m.fecha || '').startsWith(`${anio}-${mesStr}`) && m.tipo !== 'pago_arbitro');
+  const cierresMes = db.cierres.filter((c) => c.fecha.startsWith(`${anio}-${mesStr}`));
+
+  const ingresos =
+    movimientosEnCaja.filter((m) => m.monto > 0).reduce((acc, m) => acc + m.monto, 0) +
+    cierresMes.reduce((acc, c) => acc + c.ingresos, 0);
+  const egresos =
+    movimientosEnCaja.filter((m) => m.monto < 0).reduce((acc, m) => acc + Math.abs(m.monto), 0) +
+    cierresMes.reduce((acc, c) => acc + c.egresos, 0);
+
+  const detalleMovimientos = [
+    ...movimientosEnCaja.map((m) => ({
+      ...m,
+      fechaLegible: new Date(m.fecha).toLocaleString('es-ES', { hour12: false }),
+    })),
+    ...cierresMes.map((cierre) => ({
+      id: `cierre-${cierre.fecha}`,
+      concepto: `Cierre del ${cierre.fecha}`,
+      tipo: 'manual',
+      monto: cierre.total,
+      fecha: `${cierre.fecha}T23:59:00`,
+      fechaLegible: new Date(`${cierre.fecha}T23:59:00`).toLocaleString('es-ES', { hour12: false }),
+    } as Movimiento & { fechaLegible: string })),
+  ];
+
   const saldoNeto = ingresos - egresos;
   return { ingresos: ingresos.toFixed(2), egresos: egresos.toFixed(2), saldoNeto: saldoNeto.toFixed(2), detalleMovimientos };
 }
@@ -285,6 +316,9 @@ export async function cerrarDia(_: string, fecha?: string, password?: string) {
   const resumen: Cierre = { fecha: hoy, total, movimientos: movimientosDia, ingresos, egresos };
   db.cierres = db.cierres.filter((c) => c.fecha !== hoy);
   db.cierres.push(resumen);
+  db.caja = db.caja.filter((m) => (m.fecha || '').slice(0, 10) !== hoy);
+  db.aperturas = db.aperturas.filter((dia) => dia !== hoy);
+  db.diaAbiertoActual = null;
   await saveDb(db);
   return {
     message: 'Cierre completado',
@@ -301,13 +335,9 @@ export async function abrirDia(_: string, fecha: string, password?: string) {
     throw new Error('Contraseña incorrecta');
   }
   const dia = fecha.slice(0, 10);
-  if (db.aperturas.includes(dia)) {
-    throw new Error('Ese día ya fue abierto previamente');
-  }
-  if (db.cierres.some((c) => c.fecha === dia)) {
-    throw new Error('Ese día ya fue cerrado y no puede abrirse nuevamente');
-  }
-  db.aperturas.push(dia);
+  db.cierres = db.cierres.filter((c) => c.fecha !== dia);
+  db.aperturas = [dia];
+  db.diaAbiertoActual = dia;
   await saveDb(db);
   return { message: 'Día abierto correctamente', fecha: dia };
 }
