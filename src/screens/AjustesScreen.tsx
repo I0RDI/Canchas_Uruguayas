@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { abrirDia, cerrarDia, reporteMensual } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -99,7 +99,7 @@ export default function AjustesScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Ajustes</Text>
       <Text style={styles.subtitle}>Reportes, cierres y herramientas administrativas.</Text>
 
@@ -141,18 +141,15 @@ export default function AjustesScreen() {
             <Text style={styles.meta}>Egresos: -${reporte.egresos}</Text>
             <Text style={[styles.meta, styles.boldText]}>Saldo neto: ${reporte.saldoNeto}</Text>
             <Text style={[styles.sectionTitle, { marginTop: 12 }]}>Movimientos</Text>
-            <FlatList
-              data={reporte.detalleMovimientos}
-              keyExtractor={(item, idx) => `${item.id || 'mov'}-${idx}`}
-              ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-              renderItem={({ item }) => (
-                <View style={styles.reportItem}>
+            <View style={{ gap: 8 }}>
+              {(reporte.detalleMovimientos || []).map((item: any, idx: number) => (
+                <View key={`${item.id || 'mov'}-${idx}`} style={styles.reportItem}>
                   <Text style={styles.meta}>{item.fechaLegible || formatFechaMovimiento(item.fecha)}</Text>
                   <Text style={styles.reportConcept}>{item.concepto}</Text>
                   <Text style={[styles.meta, item.monto < 0 ? styles.danger : styles.success]}>${item.monto}</Text>
                 </View>
-              )}
-            />
+              ))}
+            </View>
           </View>
         ) : (
           <Text style={styles.meta}>Selecciona un mes y año para ver el detalle mensual.</Text>
@@ -209,9 +206,6 @@ export default function AjustesScreen() {
                 secureTextEntry
                 style={{ flex: 1, color: colors.text }}
               />
-              <TouchableOpacity onPress={() => setPassword('canchas123')}>
-                <Text style={{ color: colors.primary }}>Autocompletar</Text>
-              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -230,27 +224,28 @@ export default function AjustesScreen() {
             <Text style={styles.meta}>Ingresos: ${resumenCierre.ingresos?.toFixed?.(2) ?? resumenCierre.ingresos}</Text>
             <Text style={styles.meta}>Egresos: -${resumenCierre.egresos?.toFixed?.(2) ?? resumenCierre.egresos}</Text>
             <Text style={[styles.meta, styles.boldText]}>Total: ${resumenCierre.total?.toFixed?.(2) ?? resumenCierre.total}</Text>
-            <FlatList
-              data={resumenCierre.movimientos || []}
-              keyExtractor={(item, idx) => `${item.id || 'cierre'}-${idx}`}
-              ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
-              renderItem={({ item }) => (
-                <View style={styles.reportItem}>
+            <View style={{ gap: 6 }}>
+              {(resumenCierre.movimientos || []).map((item: any, idx: number) => (
+                <View key={`${item.id || 'cierre'}-${idx}`} style={styles.reportItem}>
                   <Text style={styles.reportConcept}>{item.concepto}</Text>
                   <Text style={styles.meta}>{formatFechaMovimiento(item.fecha)}</Text>
                   <Text style={[styles.meta, item.monto < 0 ? styles.danger : styles.success]}>${item.monto}</Text>
                 </View>
-              )}
-            />
+              ))}
+            </View>
           </View>
         ) : null}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
     flex: 1,
     backgroundColor: colors.background,
     padding: 24,
