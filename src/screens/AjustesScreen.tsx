@@ -278,6 +278,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 10,
+    alignItems: 'center',
   },
   primaryText: {
     color: '#fff',
