@@ -1,14 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  DateTimePickerAndroid,
-  FlatList,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { movimientosCaja, registrarRenta } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
@@ -66,6 +59,12 @@ export default function CajaScreen() {
   useEffect(() => {
     cargar();
   }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      cargar();
+    }, [user]),
+  );
 
   const validarMonto = (valor: string) => /^\d+(\.\d{0,2})?$/.test(valor);
 
