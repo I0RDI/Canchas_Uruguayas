@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  DateTimePickerAndroid,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { movimientosCaja, registrarRenta } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
@@ -24,6 +33,7 @@ export default function CajaScreen() {
   const [monto, setMonto] = useState('');
   const [tipoMovimiento, setTipoMovimiento] = useState<'cancha' | 'torneo'>('cancha');
   const [canchaSeleccionada, setCanchaSeleccionada] = useState('');
+  const [fechaCancha, setFechaCancha] = useState('');
   const [horaCancha, setHoraCancha] = useState('');
   const [torneoNombre, setTorneoNombre] = useState('');
   const [torneoCanchas, setTorneoCanchas] = useState<string[]>([]);
@@ -62,11 +72,58 @@ export default function CajaScreen() {
   const limpiarFormulario = () => {
     setMonto('');
     setCanchaSeleccionada('');
+    setFechaCancha('');
     setHoraCancha('');
     setTorneoNombre('');
     setTorneoCanchas([]);
     setTorneoFecha('');
     setTorneoHora('');
+  };
+
+  const formatDate = (date: Date) => date.toISOString().slice(0, 10);
+  const formatTime = (date: Date) =>
+    date
+      .toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+      .slice(0, 5);
+
+  const parseDate = (value: string) => (value ? new Date(`${value}T00:00:00`) : new Date());
+  const parseTime = (value: string) => {
+    if (!value) return new Date();
+    const [hours, minutes] = value.split(':').map((v) => Number(v));
+    const now = new Date();
+    if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+      now.setHours(hours, minutes, 0, 0);
+    }
+    return now;
+  };
+
+  const openDatePicker = (currentValue: string, onChange: (next: string) => void) => {
+    DateTimePickerAndroid.open({
+      value: parseDate(currentValue),
+      mode: 'date',
+      onChange: (event, selectedDate) => {
+        if (event.type === 'set' && selectedDate) {
+          onChange(formatDate(selectedDate));
+        }
+      },
+    });
+  };
+
+  const openTimePicker = (currentValue: string, onChange: (next: string) => void) => {
+    DateTimePickerAndroid.open({
+      value: parseTime(currentValue),
+      mode: 'time',
+      is24Hour: true,
+      onChange: (event, selectedDate) => {
+        if (event.type === 'set' && selectedDate) {
+          onChange(formatTime(selectedDate));
+        }
+      },
+    });
   };
 
   const handleRegistrarMovimiento = async () => {
@@ -85,8 +142,8 @@ export default function CajaScreen() {
     }
 
     if (tipoMovimiento === 'cancha') {
-      if (!canchaSeleccionada || !horaCancha.trim()) {
-        Alert.alert('Datos faltantes', 'Selecciona la cancha y la hora de la renta.');
+      if (!canchaSeleccionada || !fechaCancha.trim() || !horaCancha.trim()) {
+        Alert.alert('Datos faltantes', 'Selecciona la cancha, fecha y hora de la renta.');
         return;
       }
     } else {
@@ -100,7 +157,12 @@ export default function CajaScreen() {
     try {
       const detalle =
         tipoMovimiento === 'cancha'
-          ? { cancha: canchaSeleccionada, hora: horaCancha.trim(), motivo: 'Renta Cancha' }
+          ? {
+              cancha: canchaSeleccionada,
+              fecha: fechaCancha.trim(),
+              hora: horaCancha.trim(),
+              motivo: 'Renta Cancha',
+            }
           : { torneo: torneoNombre.trim(), canchas: torneoCanchas, fecha: torneoFecha.trim(), horaInicio: torneoHora.trim() };
       const concepto =
         tipoMovimiento === 'cancha'
@@ -208,13 +270,24 @@ export default function CajaScreen() {
                 );
               })}
             </View>
-            <TextInput
-              placeholder="Hora de la renta (ej. 09:00)"
-              placeholderTextColor="#7F8C8D"
-              value={horaCancha}
-              onChangeText={setHoraCancha}
+            <TouchableOpacity
+              onPress={() => openDatePicker(fechaCancha, setFechaCancha)}
               style={styles.input}
-            />
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.pickerText, !fechaCancha && styles.placeholderText]}>
+                {fechaCancha || 'Fecha de la renta'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => openTimePicker(horaCancha, setHoraCancha)}
+              style={styles.input}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.pickerText, !horaCancha && styles.placeholderText]}>
+                {horaCancha || 'Hora de la renta'}
+              </Text>
+            </TouchableOpacity>
           </>
         ) : (
           <>
@@ -244,20 +317,24 @@ export default function CajaScreen() {
                 );
               })}
             </View>
-            <TextInput
-              placeholder="Fecha del torneo (AAAA-MM-DD)"
-              placeholderTextColor="#7F8C8D"
-              value={torneoFecha}
-              onChangeText={setTorneoFecha}
+            <TouchableOpacity
+              onPress={() => openDatePicker(torneoFecha, setTorneoFecha)}
               style={styles.input}
-            />
-            <TextInput
-              placeholder="Hora de inicio"
-              placeholderTextColor="#7F8C8D"
-              value={torneoHora}
-              onChangeText={setTorneoHora}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.pickerText, !torneoFecha && styles.placeholderText]}>
+                {torneoFecha || 'Fecha del torneo'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => openTimePicker(torneoHora, setTorneoHora)}
               style={styles.input}
-            />
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.pickerText, !torneoHora && styles.placeholderText]}>
+                {torneoHora || 'Hora de inicio'}
+              </Text>
+            </TouchableOpacity>
           </>
         )}
 
@@ -293,6 +370,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: colors.text,
   },
+  pickerText: { color: colors.text },
+  placeholderText: { color: '#7F8C8D' },
   registerButton: {
     backgroundColor: colors.primary,
     paddingVertical: 12,
