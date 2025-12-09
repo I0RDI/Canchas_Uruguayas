@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { abrirDia, cerrarDia, reporteMensual } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -99,7 +99,7 @@ export default function AjustesScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Ajustes</Text>
       <Text style={styles.subtitle}>Reportes, cierres y herramientas administrativas.</Text>
 
@@ -209,9 +209,6 @@ export default function AjustesScreen() {
                 secureTextEntry
                 style={{ flex: 1, color: colors.text }}
               />
-              <TouchableOpacity onPress={() => setPassword('canchas123')}>
-                <Text style={{ color: colors.primary }}>Autocompletar</Text>
-              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -245,12 +242,16 @@ export default function AjustesScreen() {
           </View>
         ) : null}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
     flex: 1,
     backgroundColor: colors.background,
     padding: 24,
