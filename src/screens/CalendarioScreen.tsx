@@ -110,8 +110,8 @@ export default function CalendarioScreen() {
 
       <View style={styles.calendar}>
         <View style={styles.weekHeader}>
-          {dayLabels.map((dia) => (
-            <Text key={dia} style={styles.weekDay}>
+          {dayLabels.map((dia, idx) => (
+            <Text key={`${dia}-${idx}`} style={styles.weekDay}>
               {dia}
             </Text>
           ))}
@@ -149,7 +149,12 @@ export default function CalendarioScreen() {
         ) : eventos.length === 0 ? (
           <Text style={styles.empty}>No hay eventos para esta fecha.</Text>
         ) : (
-          <FlatList data={eventos} keyExtractor={(item) => item.id} renderItem={renderEvento} ItemSeparatorComponent={() => <View style={{ height: 10 }} />} />
+          <FlatList
+            data={eventos}
+            keyExtractor={(item) => `${item.tipo}-${item.id}`}
+            renderItem={renderEvento}
+            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+          />
         )}
       </View>
     </View>

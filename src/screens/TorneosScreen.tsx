@@ -22,7 +22,7 @@ export default function TorneosScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [monthCursor, setMonthCursor] = useState(new Date());
 
-  const canchasDisponibles = ['Cancha Grande', 'Cancha 1', 'Cancha 2', 'Cancha 3'];
+  const canchasDisponibles = ['Cancha Pasto', 'Cancha 1', 'Cancha 2', 'Cancha 3', 'Cancha 4'];
   const isEditing = editingId !== null;
 
   const resetForm = () => {

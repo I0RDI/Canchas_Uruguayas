@@ -105,8 +105,6 @@ export default function CanchasScreen() {
           cliente: datos.cliente.trim(),
           fecha: hoy,
           horaInicio: datos.hora.trim(),
-          monto: 240,
-          referencia: `${selectedCanchaId}-${datos.cliente}`,
         });
         setCanchas((prev) =>
           prev.map((cancha) =>
@@ -119,7 +117,7 @@ export default function CanchasScreen() {
               : cancha,
           ),
         );
-        Alert.alert('Reserva guardada', 'Se registró la renta en caja.');
+        Alert.alert('Reserva guardada', 'Se registró la renta para la cancha seleccionada.');
       }
     } catch (error: any) {
       Alert.alert('No se pudo registrar', error.message);
@@ -188,7 +186,7 @@ export default function CanchasScreen() {
                 style={styles.input}
               />
               <View style={styles.actionsRow}>
-                <TouchableOpacity style={styles.saveButton} onPress={handleGuardarReserva} disabled={registrando}>
+                <TouchableOpacity style={[styles.saveButton, styles.saveButtonCentered]} onPress={handleGuardarReserva} disabled={registrando}>
                   <Text style={styles.saveButtonText}>{registrando ? 'Guardando...' : 'Guardar'}</Text>
                 </TouchableOpacity>
                 {selectedCancha.estado === 'Ocupada' && (
@@ -204,10 +202,6 @@ export default function CanchasScreen() {
         )}
       </View>
 
-      <Text style={styles.subtitle}>Eventos Recientes</Text>
-      <View style={styles.eventBox}>
-        <Text style={{ color: colors.text }}>Torneo de verano 2025</Text>
-      </View>
     </ScrollView>
   );
 }
@@ -292,14 +286,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#ECF0F1',
   },
-  actionsRow: { flexDirection: 'row', gap: 10 },
-  subtitle: { fontSize: 18, marginTop: 20, marginBottom: 8, color: colors.text },
-  eventBox: {
-    backgroundColor: colors.card,
-    padding: 14,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
+  actionsRow: { flexDirection: 'row', gap: 10, justifyContent: 'center' },
+  saveButtonCentered: { minWidth: '45%' },
 });
