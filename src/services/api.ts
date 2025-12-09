@@ -14,7 +14,13 @@ type Movimiento = {
   fecha: string;
   detalle?: Record<string, any>;
 };
-type Cierre = { fecha: string; total: number; movimientos: Movimiento[] };
+type Cierre = {
+  fecha: string;
+  total: number;
+  movimientos: Movimiento[];
+  ingresos: number;
+  egresos: number;
+};
 
 type LocalDb = {
   torneos: Torneo[];
@@ -23,6 +29,7 @@ type LocalDb = {
   canchas: CanchaEstado[];
   caja: Movimiento[];
   cierres: Cierre[];
+  aperturas: string[];
 };
 
 const defaultDb: LocalDb = {
@@ -30,13 +37,15 @@ const defaultDb: LocalDb = {
   arbitros: [],
   partidos: [],
   canchas: [
-    { id: 'cancha-grande', nombre: 'Cancha Grande', estado: 'Libre', alquiler: null },
+    { id: 'cancha-pasto', nombre: 'Cancha Pasto', estado: 'Libre', alquiler: null },
     { id: 'cancha-1', nombre: 'Cancha 1', estado: 'Libre', alquiler: null },
     { id: 'cancha-2', nombre: 'Cancha 2', estado: 'Libre', alquiler: null },
     { id: 'cancha-3', nombre: 'Cancha 3', estado: 'Libre', alquiler: null },
+    { id: 'cancha-4', nombre: 'Cancha 4', estado: 'Libre', alquiler: null },
   ],
   caja: [],
   cierres: [],
+  aperturas: [],
 };
 
 function generateId(prefix: string) {
@@ -47,15 +56,22 @@ async function loadDb(): Promise<LocalDb> {
   const saved = await AsyncStorage.getItem(STORAGE_KEY);
   if (!saved) return { ...defaultDb };
   const parsed = JSON.parse(saved);
+  const mergedCanchas = (parsed.canchas || defaultDb.canchas).slice();
+  defaultDb.canchas.forEach((base) => {
+    if (!mergedCanchas.some((c: CanchaEstado) => c.id === base.id)) {
+      mergedCanchas.push(base);
+    }
+  });
   return {
     ...defaultDb,
     ...parsed,
-    canchas: parsed.canchas || defaultDb.canchas,
+    canchas: mergedCanchas,
     torneos: parsed.torneos || [],
     arbitros: parsed.arbitros || [],
     partidos: parsed.partidos || [],
     caja: parsed.caja || [],
     cierres: parsed.cierres || [],
+    aperturas: parsed.aperturas || [],
   } as LocalDb;
 }
 
@@ -170,17 +186,6 @@ export async function crearReserva(
   if (!cancha) throw new Error('Cancha no encontrada');
   cancha.estado = 'Ocupada';
   cancha.alquiler = { hora: payload.horaInicio, cliente: payload.cliente, fecha: payload.fecha };
-  if (payload.monto) {
-    const movimiento: Movimiento = {
-      id: generateId('mov'),
-      concepto: `Renta ${cancha.nombre}`,
-      tipo: 'cancha',
-      monto: payload.monto,
-      fecha: new Date().toISOString(),
-      detalle: { cancha: cancha.nombre, cliente: payload.cliente, hora: payload.horaInicio },
-    };
-    db.caja = [movimiento, ...db.caja];
-  }
   await saveDb(db);
   return cancha;
 }
@@ -213,7 +218,8 @@ export async function movimientosCaja(_: string, fecha?: string) {
   const hoy = fecha || new Date().toISOString().slice(0, 10);
   const movimientosDia = db.caja.filter((m) => (m.fecha || '').slice(0, 10) === hoy);
   const cerrado = db.cierres.some((c) => c.fecha === hoy);
-  return { movimientos: movimientosDia, cerrado };
+  const abierto = db.aperturas.includes(hoy);
+  return { movimientos: movimientosDia, cerrado, abierto };
 }
 
 export async function registrarRenta(
@@ -225,7 +231,7 @@ export async function registrarRenta(
     id: generateId('mov'),
     concepto: payload.concepto,
     tipo: payload.tipo,
-    monto: Number(payload.monto.toFixed(2)),
+    monto: Number(Number(payload.monto).toFixed(2)),
     fecha: payload.fecha || new Date().toISOString(),
     detalle: payload.detalle,
   };
@@ -255,27 +261,55 @@ export async function calendarioDia(_: string, fecha: string) {
 export async function reporteMensual(_: string, anio: number, mes: number) {
   const db = await loadDb();
   const mesStr = String(mes).padStart(2, '0');
-  const ingresosRenta = db.caja
-    .filter((m) => (m.fecha || '').startsWith(`${anio}-${mesStr}`) && m.monto > 0)
-    .reduce((acc, m) => acc + m.monto, 0);
-  const egresosArbitros = db.caja
-    .filter((m) => (m.fecha || '').startsWith(`${anio}-${mesStr}`) && m.monto < 0)
-    .reduce((acc, m) => acc + Math.abs(m.monto), 0);
-  const detalleMovimientos = db.caja.filter((m) => (m.fecha || '').startsWith(`${anio}-${mesStr}`));
-  const saldoNeto = ingresosRenta - egresosArbitros;
-  return { ingresosRenta: ingresosRenta.toFixed(2), egresosArbitros: egresosArbitros.toFixed(2), saldoNeto: saldoNeto.toFixed(2), detalleMovimientos };
+  const movimientosMes = db.caja.filter((m) => (m.fecha || '').startsWith(`${anio}-${mesStr}`) && m.tipo !== 'pago_arbitro');
+  const ingresos = movimientosMes.filter((m) => m.monto > 0).reduce((acc, m) => acc + m.monto, 0);
+  const egresos = movimientosMes.filter((m) => m.monto < 0).reduce((acc, m) => acc + Math.abs(m.monto), 0);
+  const detalleMovimientos = movimientosMes.map((m) => ({
+    ...m,
+    fechaLegible: new Date(m.fecha).toLocaleString('es-ES', { hour12: false }),
+  }));
+  const saldoNeto = ingresos - egresos;
+  return { ingresos: ingresos.toFixed(2), egresos: egresos.toFixed(2), saldoNeto: saldoNeto.toFixed(2), detalleMovimientos };
 }
 
-export async function cerrarDia(_: string, fecha?: string) {
+export async function cerrarDia(_: string, fecha?: string, password?: string) {
   const db = await loadDb();
   const hoy = fecha || new Date().toISOString().slice(0, 10);
+  if (password && password !== USERS.propietario.password) {
+    throw new Error('Contraseña incorrecta');
+  }
   const movimientosDia = db.caja.filter((m) => (m.fecha || '').slice(0, 10) === hoy);
-  const total = movimientosDia.reduce((acc, m) => acc + m.monto, 0);
-  const resumen: Cierre = { fecha: hoy, total, movimientos: movimientosDia };
+  const ingresos = movimientosDia.filter((m) => m.monto > 0).reduce((acc, m) => acc + m.monto, 0);
+  const egresos = movimientosDia.filter((m) => m.monto < 0).reduce((acc, m) => acc + Math.abs(m.monto), 0);
+  const total = ingresos - egresos;
+  const resumen: Cierre = { fecha: hoy, total, movimientos: movimientosDia, ingresos, egresos };
   db.cierres = db.cierres.filter((c) => c.fecha !== hoy);
   db.cierres.push(resumen);
   await saveDb(db);
-  return { message: 'Cierre completado', total, movimientos: movimientosDia };
+  return {
+    message: 'Cierre completado',
+    total,
+    ingresos,
+    egresos,
+    movimientos: movimientosDia,
+  };
+}
+
+export async function abrirDia(_: string, fecha: string, password?: string) {
+  const db = await loadDb();
+  if (password && password !== USERS.propietario.password) {
+    throw new Error('Contraseña incorrecta');
+  }
+  const dia = fecha.slice(0, 10);
+  if (db.aperturas.includes(dia)) {
+    throw new Error('Ese día ya fue abierto previamente');
+  }
+  if (db.cierres.some((c) => c.fecha === dia)) {
+    throw new Error('Ese día ya fue cerrado y no puede abrirse nuevamente');
+  }
+  db.aperturas.push(dia);
+  await saveDb(db);
+  return { message: 'Día abierto correctamente', fecha: dia };
 }
 
 export async function bitacora() {
