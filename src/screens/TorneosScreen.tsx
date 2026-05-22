@@ -152,13 +152,13 @@ export default function TorneosScreen() {
         </View>
         <TextInput
           placeholder="Nombre del torneo"
-          placeholderTextColor="#7F8C8D"
+          placeholderTextColor={colors.subtle}
           value={nombre}
           onChangeText={setNombre}
           style={styles.input}
         />
         <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker((prev) => !prev)}>
-          <Text style={{ color: fecha ? colors.text : '#7F8C8D' }}>
+          <Text style={{ color: fecha ? colors.text : colors.subtle }}>
             {fecha ? `Fecha seleccionada: ${fecha}` : 'Selecciona la fecha'}
           </Text>
         </TouchableOpacity>
@@ -266,11 +266,11 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 24,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.3,
     shadowRadius: 3,
   },
   input: {
-    backgroundColor: '#F8F9F9',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -296,21 +296,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#D5DBDB',
-    backgroundColor: '#F8F9F9',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     marginRight: 8,
     marginBottom: 8,
   },
   checkboxItemSelected: {
     borderColor: colors.primary,
-    backgroundColor: '#E8F8F5',
+    backgroundColor: colors.primaryDim,
   },
   checkboxIndicator: {
     width: 18,
     height: 18,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#BDC3C7',
+    borderColor: colors.border,
     marginRight: 8,
   },
   checkboxIndicatorSelected: {
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   cancelButton: {
-    backgroundColor: '#AAB7B8',
+    backgroundColor: '#4A5568',
   },
   primaryButtonText: {
     color: '#FFFFFF',
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   emptyText: {
-    color: '#7F8C8D',
+    color: colors.subtle,
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 16,
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.3,
     shadowRadius: 3,
     gap: 8,
   },
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   },
   cardMeta: {
     fontSize: 14,
-    color: '#566573',
+    color: colors.muted,
   },
   cardActions: {
     flexDirection: 'row',
@@ -393,14 +393,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   deleteButton: {
-    backgroundColor: '#E74C3C',
+    backgroundColor: colors.danger,
   },
   actionText: {
     color: '#FFFFFF',
     fontWeight: '600',
   },
   calendarBox: {
-    backgroundColor: '#F8F9F9',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 10,
     marginBottom: 12,
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    backgroundColor: '#E5E7E9',
+    backgroundColor: colors.surface,
   },
   daySelected: { backgroundColor: colors.primary },
   dayText: { color: colors.text, fontWeight: '700' },

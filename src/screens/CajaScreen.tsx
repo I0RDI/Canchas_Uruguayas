@@ -243,7 +243,7 @@ export default function CajaScreen() {
 
         <TextInput
           placeholder="Monto (ej. 100.00)"
-          placeholderTextColor="#7F8C8D"
+          placeholderTextColor={colors.subtle}
           value={monto}
           keyboardType="decimal-pad"
           onChangeText={(text) => {
@@ -296,7 +296,7 @@ export default function CajaScreen() {
           <>
             <TextInput
               placeholder="Nombre del torneo"
-              placeholderTextColor="#7F8C8D"
+              placeholderTextColor={colors.subtle}
               value={torneoNombre}
               onChangeText={setTorneoNombre}
               style={styles.input}
@@ -367,14 +367,14 @@ const styles = StyleSheet.create({
   form: { backgroundColor: colors.card, padding: 14, borderRadius: 12, marginVertical: 12, gap: 10 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
   input: {
-    backgroundColor: '#F8F9F9',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: colors.text,
   },
   pickerText: { color: colors.text },
-  placeholderText: { color: '#7F8C8D' },
+  placeholderText: { color: colors.subtle },
   registerButton: {
     backgroundColor: colors.primary,
     paddingVertical: 12,
@@ -385,22 +385,22 @@ const styles = StyleSheet.create({
   registerText: { color: '#fff', fontWeight: '700' },
   card: { backgroundColor: colors.card, padding: 16, borderRadius: 12, gap: 6 },
   title: { fontSize: 16, fontWeight: '600', color: colors.text },
-  meta: { color: '#7F8C8D' },
+  meta: { color: colors.subtle },
   amount: { fontSize: 18, fontWeight: '700', color: colors.primary },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, color: '#fff' },
-  badgeDanger: { backgroundColor: '#E74C3C' },
-  badgeSuccess: { backgroundColor: '#2ECC71' },
-  warning: { color: '#D35400', marginTop: 4 },
+  badgeDanger: { backgroundColor: colors.danger },
+  badgeSuccess: { backgroundColor: colors.success },
+  warning: { color: '#E67E22', marginTop: 4 },
   toggleRow: { flexDirection: 'row', gap: 8 },
   toggleButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#D5DBDB',
+    borderColor: colors.border,
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
   },
-  toggleButtonActive: { backgroundColor: '#E8F8F5', borderColor: colors.primary },
+  toggleButtonActive: { backgroundColor: colors.primaryDim, borderColor: colors.primary },
   toggleText: { color: colors.text, fontWeight: '600' },
   toggleTextActive: { color: colors.primary },
   label: { color: colors.text, fontWeight: '600' },
@@ -410,10 +410,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D5DBDB',
-    backgroundColor: '#F8F9F9',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  tagSelected: { backgroundColor: '#E8F8F5', borderColor: colors.primary },
+  tagSelected: { backgroundColor: colors.primaryDim, borderColor: colors.primary },
   tagText: { color: colors.text },
   tagTextSelected: { color: colors.primary, fontWeight: '700' },
 });

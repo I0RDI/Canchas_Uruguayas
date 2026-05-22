@@ -2,6 +2,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import TorneosScreen from './src/screens/TorneosScreen';
 import CanchasScreen from './src/screens/CanchasScreen';
 import AjustesScreen from './src/screens/AjustesScreen';
@@ -11,6 +12,18 @@ import { colors } from './src/theme/colors';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import ArbitrosScreen from './src/screens/ArbitrosScreen';
 import CajaScreen from './src/screens/CajaScreen';
+
+const navigationTheme = {
+  dark: true,
+  colors: {
+    primary: colors.primary,
+    background: colors.background,
+    card: colors.card,
+    text: colors.text,
+    border: colors.border,
+    notification: colors.primary,
+  },
+};
 
 const TAB_CONFIG = [
   { name: 'Torneos', component: TorneosScreen, roles: ['propietario', 'empleado'] },
@@ -30,7 +43,7 @@ function AppTabs() {
 
   if (!availableTabs.length) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
         <Text style={{ color: colors.text }}>No tienes permisos para ver esta sección.</Text>
       </View>
     );
@@ -43,11 +56,11 @@ function AppTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.text,
+        tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
         tabBarStyle: {
           backgroundColor: colors.card,
-          borderTopColor: colors.primary,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
         },
         tabBarIcon: ({ color }) => {
@@ -74,17 +87,22 @@ function Root() {
   const { user, loading } = useAuth();
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
         <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
-  return <NavigationContainer>{user ? <AppTabs /> : <LoginScreen />}</NavigationContainer>;
+  return (
+    <NavigationContainer theme={navigationTheme}>
+      {user ? <AppTabs /> : <LoginScreen />}
+    </NavigationContainer>
+  );
 }
 
 export default function App() {
   return (
     <SafeAreaProvider>
+      <StatusBar style="light" />
       <AuthProvider>
         <Root />
       </AuthProvider>

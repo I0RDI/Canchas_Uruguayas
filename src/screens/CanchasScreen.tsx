@@ -268,7 +268,7 @@ export default function CanchasScreen() {
                 {selectedCancha.estado === 'Ocupada' ? 'Editar renta de la cancha' : 'Registrar nueva renta'}
               </Text>
               <TouchableOpacity style={styles.input} onPress={() => setShowHourPicker((prev) => !prev)}>
-                <Text style={{ color: formValues[selectedCancha.id]?.hora ? colors.text : '#7F8C8D' }}>
+                <Text style={{ color: formValues[selectedCancha.id]?.hora ? colors.text : colors.subtle }}>
                   {formValues[selectedCancha.id]?.hora || 'Selecciona hora y turno'}
                 </Text>
               </TouchableOpacity>
@@ -287,7 +287,7 @@ export default function CanchasScreen() {
               )}
               <TextInput
                 placeholder="Nombre de quien renta"
-                placeholderTextColor="#7F8C8D"
+                placeholderTextColor={colors.subtle}
                 value={formValues[selectedCancha.id]?.cliente || ''}
                 onChangeText={(text) => updateFormValues('cliente', text)}
                 style={styles.input}
@@ -329,7 +329,7 @@ export default function CanchasScreen() {
         <Text style={styles.detailTitle}>Reservas para fechas futuras</Text>
         <Text style={styles.meta}>Registra rentas en otros días sin cambiar el estado actual de las canchas.</Text>
         <TouchableOpacity style={styles.input} onPress={() => setShowFutureCanchaPicker((prev) => !prev)}>
-          <Text style={{ color: futureReserva.canchaId ? colors.text : '#7F8C8D' }}>
+          <Text style={{ color: futureReserva.canchaId ? colors.text : colors.subtle }}>
             {canchas.find((c) => c.id === futureReserva.canchaId)?.nombre || 'Selecciona una cancha'}
           </Text>
         </TouchableOpacity>
@@ -348,13 +348,13 @@ export default function CanchasScreen() {
         )}
         <TextInput
           placeholder="Fecha de la reserva (YYYY-MM-DD)"
-          placeholderTextColor="#7F8C8D"
+          placeholderTextColor={colors.subtle}
           value={futureReserva.fecha}
           onChangeText={(text) => setFutureReserva((prev) => ({ ...prev, fecha: text }))}
           style={styles.input}
         />
         <TouchableOpacity style={styles.input} onPress={() => setShowFutureHourPicker((prev) => !prev)}>
-          <Text style={{ color: futureReserva.hora ? colors.text : '#7F8C8D' }}>
+          <Text style={{ color: futureReserva.hora ? colors.text : colors.subtle }}>
             {futureReserva.hora || 'Selecciona hora y turno'}
           </Text>
         </TouchableOpacity>
@@ -373,7 +373,7 @@ export default function CanchasScreen() {
         )}
         <TextInput
           placeholder="Nombre de quien renta"
-          placeholderTextColor="#7F8C8D"
+          placeholderTextColor={colors.subtle}
           value={futureReserva.cliente}
           onChangeText={(text) => setFutureReserva((prev) => ({ ...prev, cliente: text }))}
           style={styles.input}
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20 },
   title: { fontSize: 22, fontWeight: 'bold', marginBottom: 10, color: colors.text },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
-  meta: { color: '#566573', marginBottom: 12 },
+  meta: { color: colors.muted, marginBottom: 12 },
   detailCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
@@ -407,14 +407,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   detailTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
-  detailStatus: { marginTop: 4, color: '#566573' },
-  statusLibre: { color: '#1FAA59', fontWeight: '600' },
-  statusOcupada: { color: '#E74C3C', fontWeight: '600' },
+  detailStatus: { marginTop: 4, color: colors.muted },
+  statusLibre: { color: colors.primary, fontWeight: '600' },
+  statusOcupada: { color: colors.danger, fontWeight: '600' },
   detailInfoBox: { marginTop: 16 },
   detailLabel: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 8 },
-  detailHint: { color: '#7F8C8D', fontStyle: 'italic', textAlign: 'center' },
+  detailHint: { color: colors.subtle, fontStyle: 'italic', textAlign: 'center' },
   input: {
-    backgroundColor: '#F8F9F9',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -434,15 +434,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D5DBDB',
+    borderColor: colors.border,
     marginBottom: 12,
   },
-  dropdownItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#ECF0F1' },
+  dropdownItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
   actionsRow: { flexDirection: 'row', gap: 10, justifyContent: 'center' },
   saveButtonCentered: { minWidth: '45%' },
   futureBox: {
     marginTop: 16,
-    backgroundColor: '#F8F9F9',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     gap: 8,
@@ -456,5 +456,5 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.primary,
   },
   futureDate: { fontSize: 13, fontWeight: '600', color: colors.text },
-  futureCliente: { fontSize: 13, color: '#566573', marginTop: 2 },
+  futureCliente: { fontSize: 13, color: colors.muted, marginTop: 2 },
 });

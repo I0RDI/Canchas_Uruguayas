@@ -29,7 +29,7 @@ export default function LoginScreen() {
 
         <TextInput
           placeholder="Usuario"
-          placeholderTextColor="#85929E"
+          placeholderTextColor={colors.subtle}
           autoCapitalize="none"
           value={username}
           onChangeText={setUsername}
@@ -37,7 +37,7 @@ export default function LoginScreen() {
         />
         <TextInput
           placeholder="Contraseña"
-          placeholderTextColor="#85929E"
+          placeholderTextColor={colors.subtle}
           secureTextEntry
           value={password}
           onChangeText={setPassword}
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     shadowColor: '#000',
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 10,
     gap: 14,
   },
@@ -78,11 +78,11 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#566573',
+    color: colors.muted,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#F8F9F9',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -103,6 +103,6 @@ const styles = StyleSheet.create({
   },
   helperText: {
     fontSize: 12,
-    color: '#7F8C8D',
+    color: colors.subtle,
   },
 });

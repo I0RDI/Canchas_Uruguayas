@@ -194,7 +194,7 @@ export default function AjustesScreen() {
                     disabled={!day}
                     onPress={() => day && setDiaSeleccionado(day)}
                   >
-                    <Text style={{ color: day ? colors.text : '#bdc3c7' }}>{day ? day.getDate() : ''}</Text>
+                    <Text style={{ color: day ? colors.text : colors.subtle }}>{day ? day.getDate() : ''}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -208,7 +208,7 @@ export default function AjustesScreen() {
             <View style={styles.passwordBox}>
               <TextInput
                 placeholder="Ingresa la contraseña"
-                placeholderTextColor="#7F8C8D"
+                placeholderTextColor={colors.subtle}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: 'bold', color: colors.text },
   subtitle: { fontSize: 16, color: colors.text },
   logoutButton: {
-    backgroundColor: '#C0392B',
+    backgroundColor: colors.danger,
     paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 12,
@@ -299,24 +299,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   reportBox: {
-    backgroundColor: '#F8F9F9',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     gap: 6,
   },
   meta: {
-    color: '#7F8C8D',
+    color: colors.subtle,
   },
   boldText: {
     fontWeight: '700',
     color: colors.text,
   },
   reportItem: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderRadius: 10,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#ECF0F1',
+    borderColor: colors.borderLight,
     gap: 2,
   },
   reportConcept: {
@@ -324,11 +324,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   danger: {
-    color: '#C0392B',
+    color: colors.danger,
     fontWeight: '700',
   },
   success: {
-    color: '#27AE60',
+    color: colors.success,
     fontWeight: '700',
   },
   secondaryButton: {
@@ -343,12 +343,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   selector: { flex: 1, gap: 6 },
-  selectorLabel: { color: '#7F8C8D', fontWeight: '600' },
+  selectorLabel: { color: colors.subtle, fontWeight: '600' },
   selectorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  selectorBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: '#ECF0F1' },
+  selectorBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.surface },
   selectorText: { color: colors.primary, fontWeight: '700' },
   selectorValue: { color: colors.text, fontWeight: '700' },
-  calendarBox: { backgroundColor: '#F8F9F9', padding: 12, borderRadius: 12, gap: 6 },
+  calendarBox: { backgroundColor: colors.surface, padding: 12, borderRadius: 12, gap: 6 },
   calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   weekRow: { flexDirection: 'row', justifyContent: 'space-between' },
   dayCell: {
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   },
   daySelected: { backgroundColor: colors.primary },
   passwordBox: {
-    backgroundColor: '#F8F9F9',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 10,
     flexDirection: 'row',

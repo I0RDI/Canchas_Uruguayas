@@ -75,14 +75,14 @@ export default function ArbitrosScreen() {
         <Text style={styles.sectionTitle}>{editing ? 'Editar árbitro' : 'Nuevo árbitro'}</Text>
         <TextInput
           placeholder="Nombre"
-          placeholderTextColor="#7F8C8D"
+          placeholderTextColor={colors.subtle}
           style={styles.input}
           value={nombre}
           onChangeText={setNombre}
         />
         <TextInput
           placeholder="Teléfono (10 dígitos)"
-          placeholderTextColor="#7F8C8D"
+          placeholderTextColor={colors.subtle}
           style={styles.input}
           keyboardType="phone-pad"
           value={telefono}
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '600', color: colors.text },
   card: { backgroundColor: colors.card, padding: 16, borderRadius: 12, gap: 10 },
   input: {
-    backgroundColor: '#F8F9F9',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -155,14 +155,14 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   button: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10 },
   primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: '#AAB7B8' },
-  danger: { backgroundColor: '#E74C3C' },
+  secondary: { backgroundColor: '#4A5568' },
+  danger: { backgroundColor: colors.danger },
   disabledBtn: { opacity: 0.7 },
   buttonText: { color: '#fff', fontWeight: '600' },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   listItem: { backgroundColor: colors.card, padding: 14, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   itemTitle: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  itemMeta: { color: '#7F8C8D' },
+  itemMeta: { color: colors.subtle },
   smallBtn: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 },
-  empty: { textAlign: 'center', color: '#7F8C8D', marginTop: 12 },
+  empty: { textAlign: 'center', color: colors.subtle, marginTop: 12 },
 });

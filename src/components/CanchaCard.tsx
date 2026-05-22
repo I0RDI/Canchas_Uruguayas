@@ -52,6 +52,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   estado: { marginTop: 6, fontSize: 16 },
-  libre: { color: '#1FAA59' },
-  ocupada: { color: '#E74C3C' },
+  libre: { color: colors.primary },
+  ocupada: { color: colors.danger },
 });

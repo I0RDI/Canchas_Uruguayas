@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   subtitle: {
     marginTop: 4,
     marginBottom: 16,
-    color: '#566573',
+    color: colors.muted,
   },
   calendar: {
     backgroundColor: colors.card,
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayActive: {
-    backgroundColor: '#F4F6F6',
+    backgroundColor: colors.surface,
   },
   dayEmpty: {
     backgroundColor: 'transparent',
@@ -289,17 +289,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   eventTime: {
-    color: '#7B8A8B',
+    color: colors.subtle,
   },
   eventDetail: {
-    color: '#566573',
+    color: colors.muted,
   },
   empty: {
-    color: '#7F8C8D',
+    color: colors.subtle,
     marginTop: 8,
   },
   error: {
-    color: '#C0392B',
+    color: colors.danger,
     marginTop: 8,
   },
   eventsHeader: {
