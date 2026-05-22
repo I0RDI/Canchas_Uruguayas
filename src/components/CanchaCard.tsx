@@ -1,4 +1,4 @@
-import { Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { colors } from '../theme/colors';
 
 type CanchaCardProps = {
@@ -6,18 +6,17 @@ type CanchaCardProps = {
   estado: string;
   isSelected: boolean;
   onPress: () => void;
+  tieneReservasFuturas?: boolean;
 };
 
-export function CanchaCard({ nombre, estado, isSelected, onPress }: CanchaCardProps) {
+export function CanchaCard({ nombre, estado, isSelected, onPress, tieneReservasFuturas }: CanchaCardProps) {
   return (
     <TouchableOpacity style={[styles.card, isSelected && styles.cardSelected]} onPress={onPress}>
-      <Text style={styles.title}>{nombre}</Text>
-      <Text
-        style={[
-          styles.estado,
-          estado === 'Libre' ? styles.libre : styles.ocupada,
-        ]}
-      >
+      <View style={styles.headerRow}>
+        <Text style={styles.title} numberOfLines={1}>{nombre}</Text>
+        {tieneReservasFuturas && <View style={styles.dot} />}
+      </View>
+      <Text style={[styles.estado, estado === 'Libre' ? styles.libre : styles.ocupada]}>
         {estado}
       </Text>
     </TouchableOpacity>
@@ -39,7 +38,19 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary,
   },
-  title: { fontSize: 18, fontWeight: 'bold', color: colors.text },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  title: { fontSize: 18, fontWeight: 'bold', color: colors.text, flex: 1 },
+  dot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.primary,
+    marginLeft: 6,
+  },
   estado: { marginTop: 6, fontSize: 16 },
   libre: { color: '#1FAA59' },
   ocupada: { color: '#E74C3C' },

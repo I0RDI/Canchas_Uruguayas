@@ -3,18 +3,30 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { CanchaCard } from '../components/CanchaCard';
 import { colors } from '../theme/colors';
-import { actualizarCanchaReserva, crearReserva, liberarCancha, obtenerCanchas, obtenerDiaAbiertoActual } from '../services/api';
+import {
+  actualizarCanchaReserva,
+  crearReserva,
+  liberarCancha,
+  obtenerCanchas,
+  obtenerDiaAbiertoActual,
+  obtenerReservas,
+} from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 type Cancha = {
   id: string;
   nombre: string;
   estado: 'Libre' | 'Ocupada';
-  alquiler?: {
-    hora: string;
-    cliente: string;
-    fecha?: string;
-  } | null;
+  alquiler?: { hora: string; cliente: string; fecha?: string } | null;
+};
+
+type Reserva = {
+  id: string;
+  canchaId: string;
+  cancha: string;
+  cliente: string;
+  fecha: string;
+  horaInicio: string;
 };
 
 export default function CanchasScreen() {
@@ -28,6 +40,7 @@ export default function CanchasScreen() {
   const [showFutureHourPicker, setShowFutureHourPicker] = useState(false);
   const [showFutureCanchaPicker, setShowFutureCanchaPicker] = useState(false);
   const [diaAbiertoActual, setDiaAbiertoActual] = useState<string | null>(null);
+  const [todasReservas, setTodasReservas] = useState<Reserva[]>([]);
   const [futureReserva, setFutureReserva] = useState<{ canchaId: string; cliente: string; fecha: string; hora: string }>({
     canchaId: '',
     cliente: '',
@@ -50,6 +63,24 @@ export default function CanchasScreen() {
     [canchas, selectedCanchaId],
   );
 
+  // Canchas que tienen reservas en fechas distintas al día abierto actual
+  const canchasConReservasFuturas = useMemo(() => {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const set = new Set<string>();
+    todasReservas.forEach((r) => {
+      if (r.fecha >= hoy && r.fecha !== diaAbiertoActual) set.add(r.canchaId);
+    });
+    return set;
+  }, [todasReservas, diaAbiertoActual]);
+
+  // Reservas de la cancha seleccionada en fechas distintas al día abierto
+  const reservasFuturasCancha = useMemo(() => {
+    if (!selectedCanchaId) return [];
+    return todasReservas
+      .filter((r) => r.canchaId === selectedCanchaId && r.fecha !== diaAbiertoActual)
+      .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.horaInicio.localeCompare(b.horaInicio));
+  }, [todasReservas, selectedCanchaId, diaAbiertoActual]);
+
   const updateFormValues = (key: string, value: string) => {
     if (!selectedCanchaId) return;
     setFormValues((prev) => ({
@@ -65,12 +96,8 @@ export default function CanchasScreen() {
     if (!user) return;
     const data = await obtenerCanchas(user.token);
     setCanchas(data as Cancha[]);
-    if (!selectedCanchaId && data.length) {
-      setSelectedCanchaId(data[0].id);
-    }
-    if (!futureReserva.canchaId && data.length) {
-      setFutureReserva((prev) => ({ ...prev, canchaId: data[0].id }));
-    }
+    if (!selectedCanchaId && data.length) setSelectedCanchaId(data[0].id);
+    if (!futureReserva.canchaId && data.length) setFutureReserva((prev) => ({ ...prev, canchaId: data[0].id }));
   }, [futureReserva.canchaId, selectedCanchaId, user]);
 
   const cargarDiaAbierto = useCallback(async () => {
@@ -79,17 +106,24 @@ export default function CanchasScreen() {
     setDiaAbiertoActual(data.diaAbiertoActual || null);
   }, [user]);
 
+  const cargarReservas = useCallback(async () => {
+    const data = await obtenerReservas();
+    setTodasReservas(data);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       cargarDiaAbierto();
       cargarCanchas();
-    }, [cargarCanchas, cargarDiaAbierto]),
+      cargarReservas();
+    }, [cargarCanchas, cargarDiaAbierto, cargarReservas]),
   );
 
   useEffect(() => {
     cargarDiaAbierto();
     cargarCanchas();
-  }, [cargarCanchas, cargarDiaAbierto]);
+    cargarReservas();
+  }, [cargarCanchas, cargarDiaAbierto, cargarReservas]);
 
   useEffect(() => {
     if (selectedCancha) {
@@ -104,11 +138,9 @@ export default function CanchasScreen() {
   }, [selectedCancha]);
 
   const handleGuardarReserva = async () => {
-    if (!selectedCanchaId || !user) return;
+    if (!selectedCanchaId || !user || !selectedCancha) return;
     const datos = formValues[selectedCanchaId] || { hora: '', cliente: '' };
-    if (!datos.hora.trim() || !datos.cliente.trim()) {
-      return;
-    }
+    if (!datos.hora.trim() || !datos.cliente.trim()) return;
 
     if (!diaAbiertoActual) {
       Alert.alert('Día no abierto', 'Abre el día desde Ajustes para poder ocupar una cancha.');
@@ -118,23 +150,20 @@ export default function CanchasScreen() {
     setRegistrando(true);
     try {
       const fechaReserva = selectedCancha.alquiler?.fecha || diaAbiertoActual;
-      if (selectedCancha?.estado === 'Ocupada') {
+      if (selectedCancha.estado === 'Ocupada') {
         await actualizarCanchaReserva(user.token, selectedCanchaId, {
           hora: datos.hora.trim(),
           cliente: datos.cliente.trim(),
           fecha: fechaReserva,
         });
         setCanchas((prev) =>
-          prev.map((cancha) =>
-            cancha.id === selectedCanchaId
-              ? {
-                  ...cancha,
-                  alquiler: { ...(cancha.alquiler || { fecha: fechaReserva }), hora: datos.hora.trim(), cliente: datos.cliente.trim(), fecha: fechaReserva },
-                }
-              : cancha,
+          prev.map((c) =>
+            c.id === selectedCanchaId
+              ? { ...c, alquiler: { ...(c.alquiler || { fecha: fechaReserva }), hora: datos.hora.trim(), cliente: datos.cliente.trim(), fecha: fechaReserva } }
+              : c,
           ),
         );
-        Alert.alert('Datos actualizados', 'Se actualizó la renta de la cancha.');
+        Alert.alert('Datos actualizados', `Se actualizó la renta de ${selectedCancha.nombre} para ${datos.cliente.trim()} a las ${datos.hora.trim()}.`);
       } else {
         await crearReserva(user.token, {
           cancha: selectedCancha.nombre,
@@ -143,17 +172,14 @@ export default function CanchasScreen() {
           horaInicio: datos.hora.trim(),
         });
         setCanchas((prev) =>
-          prev.map((cancha) =>
-            cancha.id === selectedCanchaId
-              ? {
-                  ...cancha,
-                  estado: 'Ocupada',
-                  alquiler: { hora: datos.hora.trim(), cliente: datos.cliente.trim(), fecha: fechaReserva },
-                }
-              : cancha,
+          prev.map((c) =>
+            c.id === selectedCanchaId
+              ? { ...c, estado: 'Ocupada', alquiler: { hora: datos.hora.trim(), cliente: datos.cliente.trim(), fecha: fechaReserva } }
+              : c,
           ),
         );
-        Alert.alert('Reserva guardada', 'Se registró la renta para la cancha seleccionada.');
+        await cargarReservas();
+        Alert.alert('Cancha ocupada', `Se registró la renta de ${selectedCancha.nombre} para ${datos.cliente.trim()} a las ${datos.hora.trim()}.`);
       }
     } catch (error: any) {
       Alert.alert('No se pudo registrar', error.message);
@@ -185,7 +211,11 @@ export default function CanchasScreen() {
         horaInicio: futureReserva.hora.trim(),
         marcarOcupada: false,
       });
-      Alert.alert('Reserva futura guardada', 'La reserva se registró en el calendario sin afectar el estado actual.');
+      await cargarReservas();
+      Alert.alert(
+        'Reserva guardada',
+        `Se registró la reserva de ${canchaSeleccionada?.nombre} para ${futureReserva.cliente.trim()} el ${futureReserva.fecha.trim()} a las ${futureReserva.hora.trim()}.`,
+      );
       setFutureReserva((prev) => ({ ...prev, cliente: '', fecha: '', hora: '' }));
       setShowFutureCanchaPicker(false);
       setShowFutureHourPicker(false);
@@ -201,6 +231,7 @@ export default function CanchasScreen() {
     await liberarCancha(user.token, selectedCanchaId);
     setCanchas((prev) => prev.map((c) => (c.id === selectedCanchaId ? { ...c, estado: 'Libre', alquiler: null } : c)));
     setFormValues((prev) => ({ ...prev, [selectedCanchaId]: { hora: '', cliente: '' } }));
+    await cargarReservas();
   };
 
   return (
@@ -217,6 +248,7 @@ export default function CanchasScreen() {
             estado={cancha.estado}
             isSelected={selectedCanchaId === cancha.id}
             onPress={() => setSelectedCanchaId(cancha.id)}
+            tieneReservasFuturas={canchasConReservasFuturas.has(cancha.id)}
           />
         ))}
       </View>
@@ -225,7 +257,12 @@ export default function CanchasScreen() {
         {selectedCancha ? (
           <>
             <Text style={styles.detailTitle}>{selectedCancha.nombre}</Text>
-            <Text style={styles.detailStatus}>Estado: {selectedCancha.estado}</Text>
+            <Text style={styles.detailStatus}>
+              Estado:{' '}
+              <Text style={selectedCancha.estado === 'Libre' ? styles.statusLibre : styles.statusOcupada}>
+                {selectedCancha.estado}
+              </Text>
+            </Text>
             <View style={styles.detailInfoBox}>
               <Text style={styles.detailLabel}>
                 {selectedCancha.estado === 'Ocupada' ? 'Editar renta de la cancha' : 'Registrar nueva renta'}
@@ -241,10 +278,7 @@ export default function CanchasScreen() {
                     <TouchableOpacity
                       key={opt}
                       style={styles.dropdownItem}
-                      onPress={() => {
-                        updateFormValues('hora', opt);
-                        setShowHourPicker(false);
-                      }}
+                      onPress={() => { updateFormValues('hora', opt); setShowHourPicker(false); }}
                     >
                       <Text style={{ color: colors.text }}>{opt}</Text>
                     </TouchableOpacity>
@@ -259,7 +293,11 @@ export default function CanchasScreen() {
                 style={styles.input}
               />
               <View style={styles.actionsRow}>
-                <TouchableOpacity style={[styles.saveButton, styles.saveButtonCentered]} onPress={handleGuardarReserva} disabled={registrando}>
+                <TouchableOpacity
+                  style={[styles.saveButton, styles.saveButtonCentered, registrando && styles.buttonDisabled]}
+                  onPress={handleGuardarReserva}
+                  disabled={registrando}
+                >
                   <Text style={styles.saveButtonText}>{registrando ? 'Guardando...' : 'Guardar'}</Text>
                 </TouchableOpacity>
                 {selectedCancha.estado === 'Ocupada' && (
@@ -269,6 +307,18 @@ export default function CanchasScreen() {
                 )}
               </View>
             </View>
+
+            {reservasFuturasCancha.length > 0 && (
+              <View style={styles.futureBox}>
+                <Text style={styles.futureTitle}>Reservas registradas</Text>
+                {reservasFuturasCancha.map((r) => (
+                  <View key={r.id} style={styles.futureItem}>
+                    <Text style={styles.futureDate}>{r.fecha} · {r.horaInicio}</Text>
+                    <Text style={styles.futureCliente}>{r.cliente}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </>
         ) : (
           <Text style={styles.detailHint}>Selecciona una cancha para ver sus detalles.</Text>
@@ -289,10 +339,7 @@ export default function CanchasScreen() {
               <TouchableOpacity
                 key={cancha.id}
                 style={styles.dropdownItem}
-                onPress={() => {
-                  setFutureReserva((prev) => ({ ...prev, canchaId: cancha.id }));
-                  setShowFutureCanchaPicker(false);
-                }}
+                onPress={() => { setFutureReserva((prev) => ({ ...prev, canchaId: cancha.id })); setShowFutureCanchaPicker(false); }}
               >
                 <Text style={{ color: colors.text }}>{cancha.nombre}</Text>
               </TouchableOpacity>
@@ -317,10 +364,7 @@ export default function CanchasScreen() {
               <TouchableOpacity
                 key={opt}
                 style={styles.dropdownItem}
-                onPress={() => {
-                  setFutureReserva((prev) => ({ ...prev, hora: opt }));
-                  setShowFutureHourPicker(false);
-                }}
+                onPress={() => { setFutureReserva((prev) => ({ ...prev, hora: opt })); setShowFutureHourPicker(false); }}
               >
                 <Text style={{ color: colors.text }}>{opt}</Text>
               </TouchableOpacity>
@@ -336,7 +380,7 @@ export default function CanchasScreen() {
         />
         <View style={styles.actionsRow}>
           <TouchableOpacity
-            style={[styles.saveButton, styles.saveButtonCentered]}
+            style={[styles.saveButton, styles.saveButtonCentered, registrandoFuturo && styles.buttonDisabled]}
             onPress={handleGuardarReservaFutura}
             disabled={registrandoFuturo}
           >
@@ -344,7 +388,6 @@ export default function CanchasScreen() {
           </TouchableOpacity>
         </View>
       </View>
-
     </ScrollView>
   );
 }
@@ -352,16 +395,8 @@ export default function CanchasScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20 },
   title: { fontSize: 22, fontWeight: 'bold', marginBottom: 10, color: colors.text },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  meta: {
-    color: '#566573',
-    marginBottom: 12,
-  },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
+  meta: { color: '#566573', marginBottom: 12 },
   detailCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
@@ -371,34 +406,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     marginBottom: 24,
   },
-  detailTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  detailStatus: {
-    marginTop: 4,
-    color: '#566573',
-  },
-  detailInfoBox: {
-    marginTop: 16,
-  },
-  detailLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  detailText: {
-    fontSize: 15,
-    color: '#1F2D3D',
-    marginBottom: 6,
-  },
-  detailHint: {
-    color: '#7F8C8D',
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
+  detailTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
+  detailStatus: { marginTop: 4, color: '#566573' },
+  statusLibre: { color: '#1FAA59', fontWeight: '600' },
+  statusOcupada: { color: '#E74C3C', fontWeight: '600' },
+  detailInfoBox: { marginTop: 16 },
+  detailLabel: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 8 },
+  detailHint: { color: '#7F8C8D', fontStyle: 'italic', textAlign: 'center' },
   input: {
     backgroundColor: '#F8F9F9',
     borderRadius: 12,
@@ -413,14 +427,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
-  secondaryBtn: {
-    backgroundColor: colors.accent,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
+  secondaryBtn: { backgroundColor: colors.accent },
+  buttonDisabled: { opacity: 0.6 },
+  saveButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   dropdown: {
     backgroundColor: colors.card,
     borderRadius: 10,
@@ -428,11 +437,24 @@ const styles = StyleSheet.create({
     borderColor: '#D5DBDB',
     marginBottom: 12,
   },
-  dropdownItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ECF0F1',
-  },
+  dropdownItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#ECF0F1' },
   actionsRow: { flexDirection: 'row', gap: 10, justifyContent: 'center' },
   saveButtonCentered: { minWidth: '45%' },
+  futureBox: {
+    marginTop: 16,
+    backgroundColor: '#F8F9F9',
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  futureTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 },
+  futureItem: {
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    padding: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  futureDate: { fontSize: 13, fontWeight: '600', color: colors.text },
+  futureCliente: { fontSize: 13, color: '#566573', marginTop: 2 },
 });

@@ -214,6 +214,13 @@ export async function crearReserva(
     cancha.alquiler = { hora: payload.horaInicio, cliente: payload.cliente, fecha: payload.fecha };
   }
 
+  const conflicto = db.reservas.find(
+    (r) => r.canchaId === cancha.id && r.fecha === payload.fecha && r.horaInicio === payload.horaInicio,
+  );
+  if (conflicto) {
+    throw new Error(`${cancha.nombre} ya tiene una reserva a las ${payload.horaInicio} el ${payload.fecha}.`);
+  }
+
   const nuevaReserva: Reserva = {
     id: generateId('reserva'),
     canchaId: cancha.id,
@@ -223,7 +230,7 @@ export async function crearReserva(
     horaInicio: payload.horaInicio,
   };
 
-  db.reservas = [nuevaReserva, ...db.reservas.filter((r) => !(r.canchaId === cancha.id && r.fecha === payload.fecha))];
+  db.reservas = [nuevaReserva, ...db.reservas];
   await saveDb(db);
   return marcarOcupada ? cancha : nuevaReserva;
 }
@@ -408,6 +415,11 @@ export async function abrirDia(_: string, fecha: string, password?: string) {
 export async function bitacora() {
   const db = await loadDb();
   return db.cierres;
+}
+
+export async function obtenerReservas(): Promise<Reserva[]> {
+  const db = await loadDb();
+  return db.reservas;
 }
 
 export async function obtenerCanchas() {
