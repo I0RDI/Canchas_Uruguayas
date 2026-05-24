@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { actualizarArbitro, crearArbitro, eliminarArbitro, obtenerArbitros } from '../services/api';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -69,6 +69,7 @@ export default function ArbitrosScreen() {
   };
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <View style={styles.container}>
       <Text style={styles.title}>Árbitros</Text>
       <View style={styles.card}>
@@ -111,6 +112,7 @@ export default function ArbitrosScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ gap: 10 }}
         ListEmptyComponent={<Text style={styles.empty}>No hay árbitros registrados</Text>}
+        keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => (
           <View style={styles.listItem}>
             <View>
@@ -137,6 +139,7 @@ export default function ArbitrosScreen() {
         )}
       />
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -98,6 +98,20 @@ export default function AjustesScreen() {
     return parsed.toLocaleString('es-ES', { hour12: false });
   };
 
+  if (user?.rol === 'empleado') {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', padding: 32 }]}>
+        <Text style={[styles.title, { textAlign: 'center', marginBottom: 8 }]}>Ajustes</Text>
+        <Text style={[styles.subtitle, { textAlign: 'center', marginBottom: 32 }]}>
+          Sesión iniciada como empleado.
+        </Text>
+        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+          <Text style={styles.logoutText}>Cerrar Sesión</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       style={styles.container}

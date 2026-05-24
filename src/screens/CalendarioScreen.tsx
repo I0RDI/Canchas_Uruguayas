@@ -109,8 +109,14 @@ export default function CalendarioScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.eventName}>{tipoLabel}</Text>
-          {nombre ? <Text style={styles.eventDetail}>{nombre}</Text> : null}
-          {horario ? <Text style={styles.eventTime}>{horario}</Text> : null}
+          {nombre ? <Text style={styles.eventDetail}>Cliente: {nombre}</Text> : null}
+          {item.tipo === 'reserva' && item.cancha ? (
+            <Text style={styles.eventDetail}>Cancha: {item.cancha}</Text>
+          ) : null}
+          {item.tipo === 'torneo' && item.canchas ? (
+            <Text style={styles.eventDetail}>Canchas: {Array.isArray(item.canchas) ? item.canchas.join(', ') : item.canchas}</Text>
+          ) : null}
+          {horario ? <Text style={styles.eventTime}>Hora: {horario}</Text> : null}
         </View>
       </View>
     );

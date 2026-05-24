@@ -1,6 +1,7 @@
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { CanchaCard } from '../components/CanchaCard';
 import { colors } from '../theme/colors';
 import {
@@ -188,16 +189,43 @@ export default function CanchasScreen() {
     }
   };
 
+  const formatFechaLocal = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const parseFechaLocal = (value: string) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [y, m, d] = value.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    return new Date();
+  };
+
+  const openFuturaDatePicker = () => {
+    DateTimePickerAndroid.open({
+      value: parseFechaLocal(futureReserva.fecha),
+      mode: 'date',
+      onChange: (event, selectedDate) => {
+        if (event.type === 'set' && selectedDate) {
+          setFutureReserva((prev) => ({ ...prev, fecha: formatFechaLocal(selectedDate) }));
+        }
+      },
+    });
+  };
+
   const handleGuardarReservaFutura = async () => {
     if (!user) return;
-    if (!futureReserva.canchaId || !futureReserva.cliente.trim() || !futureReserva.fecha.trim() || !futureReserva.hora.trim()) {
+    if (!futureReserva.canchaId || !futureReserva.cliente.trim() || !futureReserva.hora.trim()) {
       Alert.alert('Datos faltantes', 'Completa cancha, fecha, hora y nombre del cliente para registrar la reserva.');
       return;
     }
 
-    const fechaValida = !Number.isNaN(new Date(futureReserva.fecha).getTime());
-    if (!fechaValida) {
-      Alert.alert('Fecha inválida', 'Usa el formato YYYY-MM-DD para la fecha de la reserva.');
+    const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!fechaRegex.test(futureReserva.fecha)) {
+      Alert.alert('Fecha inválida', 'Selecciona una fecha válida con el selector.');
       return;
     }
 
@@ -235,7 +263,8 @@ export default function CanchasScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Canchas Disponibles</Text>
       <Text style={styles.meta}>
         Día abierto: {diaAbiertoActual ?? 'Ninguno (abre el día desde Ajustes para ocupar canchas en tiempo real)'}
@@ -346,13 +375,11 @@ export default function CanchasScreen() {
             ))}
           </View>
         )}
-        <TextInput
-          placeholder="Fecha de la reserva (YYYY-MM-DD)"
-          placeholderTextColor={colors.subtle}
-          value={futureReserva.fecha}
-          onChangeText={(text) => setFutureReserva((prev) => ({ ...prev, fecha: text }))}
-          style={styles.input}
-        />
+        <TouchableOpacity style={styles.input} onPress={openFuturaDatePicker} activeOpacity={0.8}>
+          <Text style={{ color: futureReserva.fecha ? colors.text : colors.subtle }}>
+            {futureReserva.fecha || 'Selecciona la fecha de la reserva'}
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.input} onPress={() => setShowFutureHourPicker((prev) => !prev)}>
           <Text style={{ color: futureReserva.hora ? colors.text : colors.subtle }}>
             {futureReserva.hora || 'Selecciona hora y turno'}
@@ -389,6 +416,7 @@ export default function CanchasScreen() {
         </View>
       </View>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

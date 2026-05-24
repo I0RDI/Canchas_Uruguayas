@@ -328,11 +328,48 @@ export async function calendarioDia(_: string, fecha: string) {
     .filter(
       (res) => !reservasRegistradas.some((registrada) => registrada.cancha === res.cancha && registrada.horaInicio === res.horaInicio),
     );
-  const reservas = [...reservasRegistradas, ...reservasActivas];
+
+  const reservasBase = [...reservasRegistradas, ...reservasActivas];
+
+  // Derivar rentas de caja (tipo cancha) que no estén ya cubiertas por una reserva
+  const rentasDerivadas = db.caja
+    .filter((m) => m.tipo === 'cancha' && m.detalle?.fecha === fecha)
+    .filter(
+      (m) =>
+        !reservasBase.some(
+          (r) => r.cancha === (m.detalle?.cancha || '') && r.horaInicio === (m.detalle?.hora || ''),
+        ),
+    )
+    .map((m) => ({
+      id: `caja-${m.id}`,
+      tipo: 'reserva' as const,
+      cliente: m.detalle?.cancha ? `Renta directa` : m.concepto,
+      horaInicio: m.detalle?.hora || '',
+      cancha: m.detalle?.cancha || '',
+    }));
+
+  const reservas = [...reservasBase, ...rentasDerivadas];
+
   const partidos = db.partidos.filter((p) => p.fecha?.slice(0, 10) === fecha).map((p) => ({ ...p, tipo: 'partido' }));
-  const torneos = db.torneos
+
+  const torneosDb = db.torneos
     .filter((t) => t.fecha === fecha)
     .map((t) => ({ id: t.id, tipo: 'torneo', nombre: t.nombre, horaInicio: t.fecha, canchas: t.canchas }));
+
+  // Derivar torneos de caja que no estén ya cubiertos por un torneo registrado en db.torneos
+  const torneosDerivados = db.caja
+    .filter((m) => m.tipo === 'torneo' && m.detalle?.fecha === fecha)
+    .filter((m) => !torneosDb.some((t) => t.nombre === (m.detalle?.torneo || '')))
+    .map((m) => ({
+      id: `caja-${m.id}`,
+      tipo: 'torneo' as const,
+      nombre: m.detalle?.torneo || m.concepto,
+      horaInicio: m.detalle?.horaInicio || '',
+      canchas: m.detalle?.canchas || [],
+    }));
+
+  const torneos = [...torneosDb, ...torneosDerivados];
+
   return { reservas, partidos, torneos };
 }
 

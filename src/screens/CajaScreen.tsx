@@ -1,7 +1,7 @@
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { movimientosCaja, registrarRenta } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
@@ -25,7 +25,8 @@ export default function CajaScreen() {
   const [diaEnCurso, setDiaEnCurso] = useState('');
   const [loading, setLoading] = useState(false);
   const [monto, setMonto] = useState('');
-  const [tipoMovimiento, setTipoMovimiento] = useState<'cancha' | 'torneo'>('cancha');
+  const [tipoMovimiento, setTipoMovimiento] = useState<'cancha' | 'torneo' | 'venta'>('cancha');
+  const [ventaDescripcion, setVentaDescripcion] = useState('');
   const [canchaSeleccionada, setCanchaSeleccionada] = useState('');
   const [fechaCancha, setFechaCancha] = useState('');
   const [horaCancha, setHoraCancha] = useState('');
@@ -80,6 +81,7 @@ export default function CajaScreen() {
     setTorneoCanchas([]);
     setTorneoFecha('');
     setTorneoHora('');
+    setVentaDescripcion('');
   };
 
   const formatDate = (date: Date) => date.toISOString().slice(0, 10);
@@ -148,33 +150,42 @@ export default function CajaScreen() {
         Alert.alert('Datos faltantes', 'Selecciona la cancha, fecha y hora de la renta.');
         return;
       }
-    } else {
+    } else if (tipoMovimiento === 'torneo') {
       if (!torneoNombre.trim() || torneoCanchas.length === 0 || !torneoFecha.trim() || !torneoHora.trim()) {
         Alert.alert('Datos faltantes', 'Completa nombre, canchas, fecha y hora del torneo.');
+        return;
+      }
+    } else {
+      if (!ventaDescripcion.trim()) {
+        Alert.alert('Datos faltantes', 'Describe qué se vendió (ej. Refresco Squirt).');
         return;
       }
     }
 
     setLoading(true);
     try {
-      const detalle =
-        tipoMovimiento === 'cancha'
-          ? {
-              cancha: canchaSeleccionada,
-              fecha: fechaCancha.trim(),
-              hora: horaCancha.trim(),
-              motivo: 'Renta Cancha',
-            }
-          : { torneo: torneoNombre.trim(), canchas: torneoCanchas, fecha: torneoFecha.trim(), horaInicio: torneoHora.trim() };
-      const concepto =
-        tipoMovimiento === 'cancha'
-          ? `Renta ${canchaSeleccionada}`
-          : `Venta torneo ${torneoNombre.trim()}`;
+      let detalle: Record<string, any>;
+      let concepto: string;
+      let tipo: 'cancha' | 'torneo' | 'manual';
+
+      if (tipoMovimiento === 'cancha') {
+        detalle = { cancha: canchaSeleccionada, fecha: fechaCancha.trim(), hora: horaCancha.trim(), motivo: 'Renta Cancha' };
+        concepto = `Renta ${canchaSeleccionada}`;
+        tipo = 'cancha';
+      } else if (tipoMovimiento === 'torneo') {
+        detalle = { torneo: torneoNombre.trim(), canchas: torneoCanchas, fecha: torneoFecha.trim(), horaInicio: torneoHora.trim() };
+        concepto = `Venta torneo ${torneoNombre.trim()}`;
+        tipo = 'torneo';
+      } else {
+        detalle = { categoria: 'venta_general' };
+        concepto = ventaDescripcion.trim();
+        tipo = 'manual';
+      }
 
       const movimiento = await registrarRenta(user.token, {
         monto: Number(monto),
         concepto,
-        tipo: tipoMovimiento,
+        tipo,
         detalle,
       });
       setMovimientos((prev) => [movimiento, ...prev]);
@@ -196,9 +207,9 @@ export default function CajaScreen() {
     <View style={styles.card}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={styles.title}>{item.concepto}</Text>
-        <Text style={[styles.badge, item.monto < 0 ? styles.badgeDanger : styles.badgeSuccess]}>{
-          item.tipo === 'torneo' ? 'Torneo' : 'Renta'
-        }</Text>
+        <Text style={[styles.badge, item.monto < 0 ? styles.badgeDanger : styles.badgeSuccess]}>
+          {item.tipo === 'torneo' ? 'Torneo' : item.detalle?.categoria === 'venta_general' ? 'Venta' : 'Renta'}
+        </Text>
       </View>
       <Text style={styles.meta}>{formatFecha(item.fecha || item.fecha_hora || '')}</Text>
       {item.detalle?.cancha ? <Text style={styles.meta}>Cancha: {item.detalle.cancha}</Text> : null}
@@ -212,6 +223,7 @@ export default function CajaScreen() {
   );
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.screenTitle}>Caja - Movimientos del día</Text>
@@ -239,6 +251,12 @@ export default function CajaScreen() {
           >
             <Text style={[styles.toggleText, tipoMovimiento === 'torneo' && styles.toggleTextActive]}>Torneo</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleButton, tipoMovimiento === 'venta' && styles.toggleButtonActive]}
+            onPress={() => setTipoMovimiento('venta')}
+          >
+            <Text style={[styles.toggleText, tipoMovimiento === 'venta' && styles.toggleTextActive]}>Venta</Text>
+          </TouchableOpacity>
         </View>
 
         <TextInput
@@ -256,7 +274,17 @@ export default function CajaScreen() {
           style={styles.input}
         />
 
-        {tipoMovimiento === 'cancha' ? (
+        {tipoMovimiento === 'venta' ? (
+          <>
+            <TextInput
+              placeholder="¿Qué se vendió? (ej. Refresco Squirt, Cigarro...)"
+              placeholderTextColor={colors.subtle}
+              value={ventaDescripcion}
+              onChangeText={setVentaDescripcion}
+              style={styles.input}
+            />
+          </>
+        ) : tipoMovimiento === 'cancha' ? (
           <>
             <Text style={styles.label}>Cancha rentada</Text>
             <View style={styles.tagsRow}>
@@ -355,8 +383,10 @@ export default function CajaScreen() {
         contentContainerStyle={{ gap: 12, paddingVertical: 10 }}
         ListEmptyComponent={<Text style={styles.meta}>No hay movimientos hoy.</Text>}
         renderItem={renderItem}
+        keyboardShouldPersistTaps="handled"
       />
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

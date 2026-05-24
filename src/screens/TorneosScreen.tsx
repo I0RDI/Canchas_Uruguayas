@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View, Alert } from 'react-native';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { actualizarTorneo, crearTorneo, eliminarTorneo, obtenerTorneos } from '../services/api';
@@ -141,6 +141,7 @@ export default function TorneosScreen() {
   );
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <View style={styles.container}>
       <Text style={styles.title}>Gestionar torneos</Text>
       <View style={styles.form}>
@@ -236,8 +237,10 @@ export default function TorneosScreen() {
         renderItem={renderTorneo}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={<Text style={styles.emptyText}>No hay torneos registrados aún.</Text>}
+        keyboardShouldPersistTaps="handled"
       />
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -1,4 +1,4 @@
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, Text, View } from 'react-native';
@@ -31,13 +31,14 @@ const TAB_CONFIG = [
   { name: 'Canchas', component: CanchasScreen, roles: ['propietario', 'empleado'] },
   { name: 'Calendario', component: CalendarioScreen, roles: ['propietario', 'empleado'] },
   { name: 'Caja', component: CajaScreen, roles: ['propietario', 'empleado'] },
-  { name: 'Ajustes', component: AjustesScreen, roles: ['propietario'] },
+  { name: 'Ajustes', component: AjustesScreen, roles: ['propietario', 'empleado'] },
 ];
 
 const Tab = createBottomTabNavigator();
 
 function AppTabs() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const availableTabs = TAB_CONFIG.filter((tab) => tab.roles.includes(user?.rol || ''));
   const initialRouteName = availableTabs[0]?.name || 'Canchas';
 
@@ -62,6 +63,8 @@ function AppTabs() {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
           borderTopWidth: 1,
+          paddingBottom: Math.max(insets.bottom, 6),
+          height: 60 + insets.bottom,
         },
         tabBarIcon: ({ color }) => {
           const icons: Record<string, string> = {
